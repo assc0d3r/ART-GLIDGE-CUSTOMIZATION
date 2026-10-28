@@ -111,17 +111,29 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 method.parameterTypes[1] == "Landroid/util/AttributeSet;"
         } ?: error("GestureOverlayView initialization method not found")
         val initImpl = initMethod.implementation ?: error("No implementation in GestureOverlayView initializer")
-        val colorSetter = initImpl.instructions.asSequence()
-            .mapNotNull { instruction ->
-                (instruction as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
-                    ?.reference as? com.android.tools.smali.dexlib2.iface.reference.MethodReference
+        val colorSetterSignature = overlayClass.methods.asSequence()
+            .flatMap { method ->
+                method.implementation?.instructions.orEmpty().asSequence()
+                    .mapNotNull { instruction ->
+                        (instruction as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
+                            ?.reference as? com.android.tools.smali.dexlib2.iface.reference.MethodReference
+                    }
             }
-            .firstOrNull { method ->
+            .filter { method ->
                 method.definingClass == overlayClass.type &&
                     method.parameterTypes == listOf("I") &&
                     method.returnType == "V"
-            } ?: error("GestureOverlayView color setter not found")
-        val colorSetterReference = "${colorSetter.definingClass}->${colorSetter.name}(I)V"
+            }
+            .map { it.name }
+            .distinct()
+            .singleOrNull()
+            ?: overlayClass.methods.filter { method ->
+                method.parameterTypes == listOf("I") &&
+                    method.returnType == "V" &&
+                    method.accessFlags and AccessFlags.STATIC.value == 0
+            }.singleOrNull()?.name
+            ?: error("GestureOverlayView color setter not found or ambiguous")
+        val colorSetterReference = "${overlayClass.type}->$colorSetterSignature(I)V"
 
         // 2. Add morpheOnDrawHook to GestureOverlayView
         val onDrawHookName = "morpheOnDrawHook"
