@@ -54,12 +54,15 @@ jobs:
       - name: Prepare Release Notes
         run: |
           cat << 'EOF' > release-notes.md
-          ### Gboard Glide Trail Customization
+          ### Gboard Customizations
 
           #### ✨ Features
           - Customize glide typing trail color, including a color wheel and rainbow mode.
           - Adjust trail fade duration, width, and point retention.
-          - The patch is exposed as an experimental target without a fixed Gboard version allowlist.
+          - Optionally promote suggestions written in a different Unicode script. This best-effort
+            heuristic affects glide and ordinary suggestion rows and cannot distinguish languages
+            that use the same script.
+          - Patches are exposed as experimental targets without a fixed Gboard version allowlist.
 
           #### 📱 Add to Morphe App
           1. Open the **Morphe** app on your Android device.
@@ -68,7 +71,7 @@ jobs:
              ```
              https://github.com/${{ github.repository }}
              ```
-          4. Return to **Patcher**, select Gboard and **Glide Trail Customization**, then patch!
+          4. Return to **Patcher**, select Gboard and the desired patch, then patch!
           EOF
 
       - name: Publish GitHub Release

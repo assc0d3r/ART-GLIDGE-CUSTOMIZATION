@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.custom.gboardpatches"
-version = "1.0.3"
+version = "1.0.4"
 
 repositories {
     mavenCentral()
@@ -24,6 +24,6 @@ kotlin {
 }
 
 tasks.jar {
-    archiveFileName.set("gboard-glide-trail-customization.jar")
+    archiveFileName.set("gboard-customizations.jar")
     destinationDirectory.set(layout.projectDirectory.dir("dist"))
 }

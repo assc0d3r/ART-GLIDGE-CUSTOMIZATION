@@ -22,6 +22,8 @@ const val PREF_KEY_GLIDE_TRAIL_SPEED_MS = "pref_key_glide_trail_speed_ms"
 const val PREF_KEY_GLIDE_TRAIL_WIDTH_DP = "pref_key_glide_trail_width_dp"
 const val PREF_KEY_GLIDE_TRAIL_LENGTH_PTS = "pref_key_glide_trail_length_pts"
 
+const val PREF_KEY_MULTILINGUAL_SUGGESTIONS_ENABLED = "pref_key_multilingual_suggestions_enabled"
+
 /**
  * Resource patch that injects comprehensive glide typing trail customization options
  * into Gboard Settings under Glide typing (res/xml/setting_gesture.xml).
@@ -45,6 +47,49 @@ val glideTrailSettingsPatch = resourcePatch(
             document.close()
         }
     }
+}
+
+val multilingualSuggestionSettingsPatch = resourcePatch(
+    description = "Adds a setting to enable script-aware multilingual suggestions."
+) {
+    compatibleWith(
+        Compatibility(
+            name = "Gboard",
+            packageName = "com.google.android.inputmethod.latin",
+            targets = listOf(AppTarget(version = null, isExperimental = true))
+        )
+    )
+
+    execute {
+        val document = document(SETTING_GESTURE_XML)
+        try {
+            applyMultilingualSuggestionSettingsPatch(document)
+        } finally {
+            document.close()
+        }
+    }
+}
+
+internal fun applyMultilingualSuggestionSettingsPatch(document: Document) {
+    val root = document.documentElement ?: return
+    if (findPreferenceByKey(root, PREF_KEY_MULTILINGUAL_SUGGESTIONS_ENABLED) != null) return
+
+    val category = document.createElement("androidx.preference.PreferenceCategory").apply {
+        setAttributeNS(ANDROID_NS, "android:title", "Multilingual Suggestions")
+    }
+    val preference = document.createElement("SwitchPreferenceCompat").apply {
+        setAttributeNS(ANDROID_NS, "android:persistent", "true")
+        setAttributeNS(ANDROID_NS, "android:title", "Script-aware suggestions")
+        setAttributeNS(
+            ANDROID_NS,
+            "android:summary",
+            "Promote the first candidate in a different writing script. Affects all suggestion rows; same-script languages cannot be distinguished."
+        )
+        setAttributeNS(ANDROID_NS, "android:key", PREF_KEY_MULTILINGUAL_SUGGESTIONS_ENABLED)
+        setAttributeNS(ANDROID_NS, "android:defaultValue", "false")
+    }
+    category.appendChild(preference)
+    root.appendChild(category)
 }
 
 internal fun applyGlideTrailSettingsPatch(document: Document) {

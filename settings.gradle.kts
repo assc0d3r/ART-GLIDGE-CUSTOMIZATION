@@ -1,1 +1,1 @@
-rootProject.name = "gboard-glide-trail-customization"
+rootProject.name = "gboard-customizations"

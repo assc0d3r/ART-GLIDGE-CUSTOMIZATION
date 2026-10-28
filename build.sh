@@ -6,7 +6,7 @@ DIST_DIR="${SCRIPT_DIR}/dist"
 BUILD_DIR="${SCRIPT_DIR}/build/classes"
 LIBS_DIR="${SCRIPT_DIR}/libs"
 
-echo "=== Building Gboard Glide Trail Customization Patch ==="
+echo "=== Building Gboard Customization Patches ==="
 
 # 1. Resolve Version from gradle.properties
 VERSION="$(grep -m1 '^version=' "${SCRIPT_DIR}/gradle.properties" | cut -d'=' -f2 | tr -d ' ')"
@@ -118,8 +118,8 @@ MANIFEST_FILE="${BUILD_DIR}/MANIFEST.MF"
 TIMESTAMP="$(date +%s000)"
 cat << EOF > "${MANIFEST_FILE}"
 Manifest-Version: 1.0
-Name: Gboard Glide Trail Customization
-Description: Gboard glide typing trail customization patch.
+Name: Gboard Customizations
+Description: Glide trail customization and script-aware multilingual suggestions for Gboard.
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
 Source: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
