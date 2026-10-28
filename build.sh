@@ -6,7 +6,7 @@ DIST_DIR="${SCRIPT_DIR}/dist"
 BUILD_DIR="${SCRIPT_DIR}/build/classes"
 LIBS_DIR="${SCRIPT_DIR}/libs"
 
-echo "=== Building Gboard Backspace Continuous Haptics Patch ==="
+echo "=== Building Gboard Glide Trail Customization Patch ==="
 
 # 1. Resolve Version from gradle.properties
 VERSION="$(grep -m1 '^version=' "${SCRIPT_DIR}/gradle.properties" | cut -d'=' -f2 | tr -d ' ')"
@@ -15,21 +15,24 @@ echo "Target Patch Version: ${VERSION}"
 # 2. Resolve Java
 if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/java" ]; then
     JAVA="${JAVA_HOME}/bin/java"
-elif [ -x "/home/ausamnco/.local/jdk-21/bin/java" ]; then
-    JAVA="/home/ausamnco/.local/jdk-21/bin/java"
 elif command -v java >/dev/null 2>&1; then
     JAVA="$(command -v java)"
 else
     echo "Error: Java 21+ is required but not found." >&2
     exit 1
 fi
-echo "Using Java: $(${JAVA} -version 2>&1 | head -n 1)"
+echo "Using Java: $("${JAVA}" -version 2>&1 | head -n 1)"
+
+# Prepare the dependency cache before resolving tools into it.
+mkdir -p "${LIBS_DIR}"
 
 # 3. Resolve Kotlin compiler
-if [ -f "${HOME}/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
+if [ -n "${KOTLIN_HOME:-}" ] && [ -f "${KOTLIN_HOME}/lib/kotlin-compiler.jar" ]; then
+    KOTLINC_JAR="${KOTLIN_HOME}/lib/kotlin-compiler.jar"
+elif [ -f "${HOME}/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
     KOTLINC_JAR="${HOME}/.local/kotlinc/lib/kotlin-compiler.jar"
-elif [ -f "/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
-    KOTLINC_JAR="/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar"
+elif [ -f "${LIBS_DIR}/kotlinc/kotlinc/lib/kotlin-compiler.jar" ]; then
+    KOTLINC_JAR="${LIBS_DIR}/kotlinc/kotlinc/lib/kotlin-compiler.jar"
 elif [ -f "${LIBS_DIR}/kotlin-compiler.jar" ]; then
     KOTLINC_JAR="${LIBS_DIR}/kotlin-compiler.jar"
 elif command -v kotlinc >/dev/null 2>&1; then
@@ -37,18 +40,19 @@ elif command -v kotlinc >/dev/null 2>&1; then
     KOTLINC_DIR="$(dirname "$(dirname "$(readlink -f "${KOTLINC_BIN}")")")"
     KOTLINC_JAR="${KOTLINC_DIR}/lib/kotlin-compiler.jar"
 else
-    echo "Error: kotlin-compiler.jar not found." >&2
-    exit 1
+    echo "Downloading Kotlin compiler..."
+    KOTLIN_ZIP="${LIBS_DIR}/kotlin-compiler.zip"
+    curl -fSL -o "${KOTLIN_ZIP}" "https://github.com/JetBrains/kotlin/releases/download/v2.0.21/kotlin-compiler-2.0.21.zip"
+    unzip -q -o "${KOTLIN_ZIP}" -d "${LIBS_DIR}/kotlinc"
+    rm -f "${KOTLIN_ZIP}"
+    KOTLINC_JAR="${LIBS_DIR}/kotlinc/kotlinc/lib/kotlin-compiler.jar"
 fi
 echo "Using Kotlin Compiler: ${KOTLINC_JAR}"
 
 # 4. Resolve Morphe CLI / Patcher Framework
-mkdir -p "${LIBS_DIR}"
 MORPHE_JAR="${LIBS_DIR}/morphe-cli.jar"
 if [ ! -f "${MORPHE_JAR}" ]; then
-    if [ -f "/home/ausamnco/.local/morphe/morphe-cli.jar" ]; then
-        cp "/home/ausamnco/.local/morphe/morphe-cli.jar" "${MORPHE_JAR}"
-    elif [ -f "${HOME}/.local/morphe/morphe-cli.jar" ]; then
+    if [ -f "${HOME}/.local/morphe/morphe-cli.jar" ]; then
         cp "${HOME}/.local/morphe/morphe-cli.jar" "${MORPHE_JAR}"
     else
         echo "Downloading morphe-desktop jar..."
@@ -114,14 +118,14 @@ MANIFEST_FILE="${BUILD_DIR}/MANIFEST.MF"
 TIMESTAMP="$(date +%s000)"
 cat << EOF > "${MANIFEST_FILE}"
 Manifest-Version: 1.0
-Name: Gboard Custom Patches
-Description: Custom enhancement patches for Gboard (Backspace Continuous Haptics, Glide Typing Trail Customization, Enter Key Tasker Event).
+Name: Gboard Glide Trail Customization
+Description: Gboard glide typing trail customization patch.
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
-Source: https://github.com/ausamnco/gboard-enc-patches
-Author: ausamnco
-Contact: https://github.com/ausamnco/gboard-enc-patches/issues
-Website: https://github.com/ausamnco/gboard-enc-patches
+Source: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
+Author: assc0d3r
+Contact: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/issues
+Website: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
 License: GPLv3
 Patcher-Version: 1.8.0
 EOF
@@ -149,12 +153,11 @@ cp "${DEX_DIR}/classes.dex" "${BUILD_DIR}/classes.dex"
 rm -f "${TEMP_CLASSES_JAR}"
 rm -rf "${DEX_DIR}"
 
-# 9. Package final .mpp and .jar
+# 9. Package final .mpp
 MPP_OUTPUT="${DIST_DIR}/patches-${VERSION}.mpp"
-JAR_OUTPUT="${DIST_DIR}/gboard-backspace-haptics.jar"
 
 echo "Packaging final patch bundle ${MPP_OUTPUT}..."
-rm -f "${MPP_OUTPUT}" "${JAR_OUTPUT}"
+rm -f "${MPP_OUTPUT}"
 "${JAR_BIN}" -cfm "${MPP_OUTPUT}" "${MANIFEST_FILE}" -C "${BUILD_DIR}" dev -C "${BUILD_DIR}" classes.dex
 if [ -f "${BUILD_DIR}/colorwheel.dex" ]; then
     echo "Adding colorwheel.dex to patch bundle..."
@@ -163,7 +166,6 @@ fi
 if [ -d "${BUILD_DIR}/META-INF" ]; then
     "${JAR_BIN}" -uf "${MPP_OUTPUT}" -C "${BUILD_DIR}" META-INF
 fi
-cp "${MPP_OUTPUT}" "${JAR_OUTPUT}"
 
 # 10. Verify using Morphe CLI
 echo "Validating patch package with Morphe CLI..."
@@ -171,4 +173,3 @@ echo "Validating patch package with Morphe CLI..."
 
 echo "=== Build Complete ==="
 echo "Morphe Release Asset : ${MPP_OUTPUT}"
-echo "Local Convenience JAR : ${JAR_OUTPUT}"

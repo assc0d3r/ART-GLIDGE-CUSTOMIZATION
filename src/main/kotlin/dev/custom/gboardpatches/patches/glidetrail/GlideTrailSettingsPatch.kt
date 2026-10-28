@@ -33,11 +33,7 @@ val glideTrailSettingsPatch = resourcePatch(
         Compatibility(
             name = "Gboard",
             packageName = "com.google.android.inputmethod.latin",
-            targets = listOf(
-                AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
-                AppTarget(version = "18.0.3"),
-                AppTarget(version = null, isExperimental = true)
-            )
+            targets = listOf(AppTarget(version = null, isExperimental = true))
         )
     )
 
@@ -59,36 +55,18 @@ internal fun applyGlideTrailSettingsPatch(document: Document) {
         return
     }
 
-    // 1. Locate the master "Glide trail" preference (key contains 0x7f140a54 or pref_gesture_preview_trail)
+    // Locate the stock glide-trail preference when its key is descriptive.
     var gestureTrailPref: Element? = null
     val allElements = getAllElements(root)
     for (el in allElements) {
-        val key = el.getAndroidAttr("key")
-        if (key.contains("0x7f140a54") || key.contains("pref_gesture_preview_trail")) {
+        val key = el.getAndroidAttr("key").lowercase()
+        if (key.contains("gesture") && key.contains("trail")) {
             gestureTrailPref = el
             break
         }
     }
 
-    // Fallback if key not found: find 2nd child in PreferenceScreen
-    val anchorNode = gestureTrailPref ?: root.childNodes.run {
-        var count = 0
-        var found: Element? = null
-        for (i in 0 until length) {
-            val item = item(i)
-            if (item is Element) {
-                count++
-                if (count == 2) {
-                    found = item
-                    break
-                }
-            }
-        }
-        found
-    }
-
     val dependencyKey = gestureTrailPref?.getAndroidAttr("key")?.takeIf { it.isNotEmpty() }
-        ?: "@string/_0_resource_name_obfuscated_res_0x7f140a54"
 
     fun createSwitch(
         key: String,
@@ -186,9 +164,9 @@ internal fun applyGlideTrailSettingsPatch(document: Document) {
         ))
     }
 
-    // Insert the entire consolidated category right after anchorNode
-    val parent = anchorNode?.parentNode ?: root
-    val insertReference = anchorNode?.nextSibling
+    // If the stock preference has an obfuscated key, keep the controls available without a dependency.
+    val parent = gestureTrailPref?.parentNode ?: root
+    val insertReference = gestureTrailPref?.nextSibling
 
     if (insertReference == null) {
         parent.appendChild(trailCategory)

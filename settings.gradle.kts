@@ -1,1 +1,1 @@
-rootProject.name = "gboard-backspace-haptics-patch"
+rootProject.name = "gboard-glide-trail-customization"

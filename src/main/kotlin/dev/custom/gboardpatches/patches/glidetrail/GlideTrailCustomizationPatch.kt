@@ -30,11 +30,10 @@ import com.android.tools.smali.dexlib2.immutable.value.ImmutableLongEncodedValue
  * 1. `GestureOverlayView` (com.google.android.apps.inputmethod.libs.gestureui.GestureOverlayView):
  *    - Injects fields for fade duration, rainbow state, and stock parameter backups.
  *    - Injects `morpheApplyCustomTrailSettings()` and `morpheOnDrawHook()`.
- *    - Hooks `c(Context, AttributeSet)` right before return to capture stock values and apply prefs.
+ *    - Hooks the `(Context, AttributeSet)` initializer to capture stock values and apply prefs.
  *    - Hooks `onDraw(Canvas)` at index 0 to update real-time Rainbow RGB hue and refresh settings.
- * 2. `mvs.g` (Gesture path processor):
- *    - Replaces the hardcoded `const-wide/16 v13, 1000` instruction with:
- *      `sget-wide v13, Lcom/google/android/apps/inputmethod/libs/gestureui/GestureOverlayView;->morpheFadeDuration:J`
+ * 2. The gesture path processor:
+ *    - Replaces its hardcoded 1000ms duration with the configurable fade duration.
  *      which scales the alpha and stroke decay dynamically based on the configured duration.
  * 3. `GesturePreferenceSettingsFragment`:
  *    - Intercepts clicks on the color wheel preference to open the interactive ColorWheelDialog.
@@ -51,11 +50,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
         Compatibility(
             name = "Gboard",
             packageName = "com.google.android.inputmethod.latin",
-            targets = listOf(
-                AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
-                AppTarget(version = "18.0.3"),
-                AppTarget(version = null, isExperimental = true)
-            )
+            targets = listOf(AppTarget(version = null, isExperimental = true))
         )
     )
     dependsOn(glideTrailSettingsPatch)
@@ -110,32 +105,25 @@ val glideTrailCustomizationPatch = bytecodePatch(
         addFieldIfMissing("morpheIsRainbow", "Z", AccessFlags.PUBLIC.value)
         addFieldIfMissing("morpheCustomApplied", "Z", AccessFlags.PUBLIC.value)
 
-        // 2. Initialize morpheFadeDuration in GestureOverlayView.<clinit>
-        val clinitMethod = overlayClass.methods.firstOrNull { it.name == "<clinit>" }
-        if (clinitMethod != null) {
-            overlayClass.methods.remove(clinitMethod)
-        }
-        val newClinit = ImmutableMethod(
-            overlayClass.type,
-            "<clinit>",
-            emptyList(),
-            "V",
-            AccessFlags.STATIC.value or AccessFlags.CONSTRUCTOR.value,
-            null,
-            null,
-            MutableMethodImplementation(2)
-        ).toMutable()
-        newClinit.addInstructions(
-            0,
-            """
-            const-wide/16 v0, 0x3e8
-            sput-wide v0, ${overlayClass.type}->morpheFadeDuration:J
-            return-void
-            """.trimIndent()
-        )
-        overlayClass.methods.add(newClinit)
+        val initMethod = overlayClass.methods.firstOrNull { method ->
+            method.parameterTypes.size == 2 &&
+                method.parameterTypes[0] == "Landroid/content/Context;" &&
+                method.parameterTypes[1] == "Landroid/util/AttributeSet;"
+        } ?: error("GestureOverlayView initialization method not found")
+        val initImpl = initMethod.implementation ?: error("No implementation in GestureOverlayView initializer")
+        val colorSetter = initImpl.instructions.asSequence()
+            .mapNotNull { instruction ->
+                (instruction as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
+                    ?.reference as? com.android.tools.smali.dexlib2.iface.reference.MethodReference
+            }
+            .firstOrNull { method ->
+                method.definingClass == overlayClass.type &&
+                    method.parameterTypes == listOf("I") &&
+                    method.returnType == "V"
+            } ?: error("GestureOverlayView color setter not found")
+        val colorSetterReference = "${colorSetter.definingClass}->${colorSetter.name}(I)V"
 
-        // 3. Add morpheOnDrawHook to GestureOverlayView
+        // 2. Add morpheOnDrawHook to GestureOverlayView
         val onDrawHookName = "morpheOnDrawHook"
         if (overlayClass.methods.none { it.name == onDrawHookName }) {
             val onDrawHookSmali = """
@@ -163,7 +151,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
                 invoke-static {v1}, Landroid/graphics/Color;->HSVToColor([F)I
                 move-result v0
-                invoke-virtual {p0, v0}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v0}, $colorSetterReference
 
                 :cond_check_time
                 # 2. Check SharedPreferences at most once every 500ms
@@ -200,7 +188,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 4. Add morpheApplyCustomTrailSettings to GestureOverlayView
+        // 3. Add morpheApplyCustomTrailSettings to GestureOverlayView
         val applySettingsMethodName = "morpheApplyCustomTrailSettings"
         if (overlayClass.methods.none { it.name == applySettingsMethodName }) {
             val applySettingsSmali = """
@@ -283,7 +271,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
                 iget v2, p0, ${overlayClass.type}->morpheStockColor:I
                 if-eqz v2, :cond_skip_color
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v2}, $colorSetterReference
                 :cond_skip_color
 
                 return-void
@@ -307,13 +295,13 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
                 move-result v2
                 if-eqz v2, :cond_check_stock_color
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v2}, $colorSetterReference
                 goto :cond_speed_check
 
                 :cond_check_stock_color
                 iget v2, p0, ${overlayClass.type}->morpheStockColor:I
                 if-eqz v2, :cond_speed_check
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v2}, $colorSetterReference
 
                 # 3. Speed / Fade Duration Slider (ms)
                 :cond_speed_check
@@ -404,19 +392,11 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 5. Hook GestureOverlayView.c(Context, AttributeSet)
-        val initMethod = overlayClass.methods.firstOrNull { m ->
-            m.name == "c" && m.parameterTypes.size == 2 &&
-            m.parameterTypes[0] == "Landroid/content/Context;" &&
-            m.parameterTypes[1] == "Landroid/util/AttributeSet;"
-        } ?: error("Method c(Context, AttributeSet) not found in GestureOverlayView")
-
-        val initImpl = initMethod.implementation ?: error("No implementation in GestureOverlayView.c")
-
-        // 5a. Save stock color before b(I)V call
+        // 4. Save stock color before the discovered color setter call
         val bCallIndex = initImpl.instructions.indexOfLast { ins ->
             ins.opcode == Opcode.INVOKE_VIRTUAL &&
-            (ins as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)?.reference?.toString()?.contains("->b(I)V") == true
+            (ins as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
+                ?.reference?.toString() == colorSetterReference
         }
         if (bCallIndex >= 0) {
             initMethod.addInstructions(
@@ -427,7 +407,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 5b. Save stock width, retention, and decay rates right before return-void
+        // Save stock width, retention, and decay rates right before return-void
         val returnVoidIndex = initImpl.instructions.indexOfLast { it.opcode == Opcode.RETURN_VOID }
         if (returnVoidIndex >= 0) {
             val backupSmali = """
@@ -444,7 +424,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             initMethod.addInstructions(returnVoidIndex, backupSmali)
         }
 
-        // 6. Hook GestureOverlayView.onDraw(Canvas) at index 0
+        // 5. Hook GestureOverlayView.onDraw(Canvas) at index 0
         val onDrawMethod = overlayClass.methods.firstOrNull { m ->
             m.name == "onDraw" && m.parameterTypes.size == 1 &&
             m.parameterTypes[0] == "Landroid/graphics/Canvas;"
@@ -457,7 +437,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             """.trimIndent()
         )
 
-        // 6b. Hook GestureOverlayView.onSizeChanged to apply custom settings on view resize / display
+        // Hook GestureOverlayView.onSizeChanged to apply custom settings on view resize / display
         val onSizeChangedMethod = overlayClass.methods.firstOrNull { m ->
             m.name == "onSizeChanged" && m.parameterTypes.size == 4
         }
@@ -474,20 +454,20 @@ val glideTrailCustomizationPatch = bytecodePatch(
             }
         }
 
-        // 7. Hook mvs.g (Gesture path processor) to use dynamic fade duration
+        // 6. Hook the gesture path processor to use dynamic fade duration
         val mvsField = overlayClass.fields.firstOrNull { field ->
             val cls = classDefByOrNull(field.type)
             cls != null && cls.methods.any { m ->
-                m.name == "g" && m.returnType == "Z" && m.parameterTypes.size == 3 &&
+                m.returnType == "Z" && m.parameterTypes.size == 3 &&
                 m.parameterTypes[0] == "Ljava/util/List;" && m.parameterTypes[2] == "J"
             }
         }
-        val mvsType = mvsField?.type ?: "Lmvs;"
+        val mvsType = mvsField?.type ?: error("Gesture path processor not found")
         val mvsClass = mutableClassDefBy(mvsType)
         val gMethod = mvsClass.methods.firstOrNull { m ->
-            m.name == "g" && m.returnType == "Z" && m.parameterTypes.size == 3 &&
+            m.returnType == "Z" && m.parameterTypes.size == 3 &&
             m.parameterTypes[0] == "Ljava/util/List;" && m.parameterTypes[2] == "J"
-        } ?: error("Method g not found in processor class $mvsType")
+        } ?: error("Gesture path processor method not found in $mvsType")
 
         val gImpl = gMethod.implementation ?: error("No implementation in $mvsType.g")
         val gInstructions = gImpl.instructions.toList()
@@ -503,7 +483,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 8. Hook PreferenceFragmentCompat (cdr.aA) to handle custom preference clicks safely
+        // 7. Hook PreferenceFragmentCompat to handle custom preference clicks safely
         val cdrClass = mutableClassDefByOrNull("Lcdr;")
         if (cdrClass != null) {
             val aAMethod = cdrClass.methods.firstOrNull {
@@ -527,7 +507,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             }
         }
 
-        // 9. Hook CommonPreferenceFragment base (doe.aB) to initialize active preference summaries
+        // 8. Hook CommonPreferenceFragment to initialize active preference summaries
         val doeClass = mutableClassDefByOrNull("Ldoe;")
         if (doeClass != null) {
             val aBMethod = doeClass.methods.firstOrNull {

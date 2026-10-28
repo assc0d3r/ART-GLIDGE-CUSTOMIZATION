@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.custom.gboardpatches"
-version = "1.0.0"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -24,6 +24,6 @@ kotlin {
 }
 
 tasks.jar {
-    archiveFileName.set("gboard-backspace-haptics.jar")
+    archiveFileName.set("gboard-glide-trail-customization.jar")
     destinationDirectory.set(layout.projectDirectory.dir("dist"))
 }
