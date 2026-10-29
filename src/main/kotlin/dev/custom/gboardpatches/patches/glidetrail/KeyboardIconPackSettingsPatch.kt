@@ -45,14 +45,18 @@ val keyboardIconPackSettingsPatch = resourcePatch(
 
 internal fun applyKeyboardIconPackSettings(document: Document) {
     val root = document.documentElement ?: return
-    if (root.findPreference(PREF_KEY_KEYBOARD_ICON_PACK_IMPORT) != null) return
+    if (root.findPreference(PREF_KEY_KEYBOARD_ICON_PACK_IMPORT) != null) {
+        root.findPreference(PREF_KEY_KEYBOARD_ICONS_ENABLED)
+            ?.setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:persistent", "true")
+        return
+    }
 
     val category = document.createElement("androidx.preference.PreferenceCategory").apply {
         setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:title", "Keyboard Icon Packs")
     }
     category.appendChild(
         document.createElement("SwitchPreferenceCompat").apply {
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:persistent", "false")
+            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:persistent", "true")
             setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:title", "Use imported keyboard icons")
             setAttributeNS(
                 KEYBOARD_ICON_ANDROID_NS,

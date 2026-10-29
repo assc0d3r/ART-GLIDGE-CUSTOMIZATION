@@ -24,7 +24,26 @@ public final class KeyboardThemeRuntime {
             if (!KeyboardThemeStudioActivity.PREF_KEY_STUDIO.equals(GlideTrailPreferences.getKey(preference))) {
                 continue;
             }
-            installStudioListener(preference);
+            GlideTrailPreferences.setPreferenceClickListener(preference, clickedPreference -> {
+                Context context = GlideTrailPreferences.getContext(clickedPreference);
+                if (context == null) {
+                    Log.e(TAG, "Unable to open Theme Studio: preference context is unavailable.");
+                    return true;
+                }
+                android.content.Intent intent = new android.content.Intent(
+                    context,
+                    KeyboardThemeStudioActivity.class
+                );
+                if (!(context instanceof android.app.Activity)) {
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                }
+                try {
+                    context.startActivity(intent);
+                } catch (RuntimeException exception) {
+                    Log.e(TAG, "Unable to open Gboard Theme Studio.", exception);
+                }
+                return true;
+            });
         }
     }
 
@@ -156,45 +175,6 @@ public final class KeyboardThemeRuntime {
         }
     }
 
-    private static void installStudioListener(final Object preference) {
-        try {
-            ClassLoader loader = preference.getClass().getClassLoader();
-            Class<?> type = Class.forName("androidx.preference.Preference$OnPreferenceClickListener", false, loader);
-            Object listener = java.lang.reflect.Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] { type },
-                (proxy, method, args) -> {
-                    if (method.getDeclaringClass() == Object.class) {
-                        if ("toString".equals(method.getName())) return "ThemeStudioPreferenceListener";
-                        if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
-                        if ("equals".equals(method.getName())) return proxy == (args == null ? null : args[0]);
-                    }
-                    if ("onPreferenceClick".equals(method.getName())) {
-                        Context context = GlideTrailPreferences.getContext(preference);
-                        if (context != null) {
-                            android.content.Intent intent = new android.content.Intent(
-                                context,
-                                KeyboardThemeStudioActivity.class
-                            );
-                            if (!(context instanceof android.app.Activity)) {
-                                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                            }
-                            context.startActivity(intent);
-                        }
-                        return true;
-                    }
-                    return null;
-                });
-            java.lang.reflect.Method setter = findMethod(
-                preference.getClass(),
-                "setOnPreferenceClickListener",
-                type
-            );
-            if (setter == null) throw new NoSuchMethodException("setOnPreferenceClickListener");
-            setter.invoke(preference, listener);
-        } catch (ReflectiveOperationException | LinkageError exception) {
-            Log.e(TAG, "Unable to initialize the theme studio preference.", exception);
-        }
-    }
-
     private static java.lang.reflect.Method findMethod(Class<?> type, String name, Class<?>... parameters) {
         Class<?> current = type;
         while (current != null && current != Object.class) {
@@ -206,4 +186,5 @@ public final class KeyboardThemeRuntime {
         }
         return null;
     }
+
 }

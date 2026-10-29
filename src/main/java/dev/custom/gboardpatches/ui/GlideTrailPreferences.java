@@ -3,14 +3,30 @@ package dev.custom.gboardpatches.ui;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
+import java.util.WeakHashMap;
 
 /**
  * Bridge helper for managing Gboard Glide Trail preferences.
  * Uses robust reflection to handle obfuscated AndroidX Preference fields and methods.
  */
 public class GlideTrailPreferences {
+    private static final String TAG = "GboardCustomizations";
+    private static final Object LISTENER_LOCK = new Object();
+    private static final WeakHashMap<Object, Boolean> PREFERENCE_LISTENERS = new WeakHashMap<>();
+
+    public interface PreferenceClickHandler {
+        boolean onClick(Object preference);
+    }
+
+    public interface PreferenceChangeHandler {
+        boolean onChange(Object preference, Object value);
+    }
 
     public static final String PREF_MASTER_ENABLED = "pref_key_glide_trail_custom_enabled";
     public static final String PREF_RAINBOW = "pref_key_glide_trail_rainbow";
@@ -109,7 +125,16 @@ public class GlideTrailPreferences {
 
     public static String getKey(Object preference) {
         if (preference == null) return null;
-        // 1. Try obfuscated field 'r'
+        // Prefer stable framework APIs; obfuscated fields can change between Gboard releases.
+        try {
+            Method m = findMethod(preference.getClass(), "getKey");
+            if (m != null) {
+                Object val = m.invoke(preference);
+                if (val instanceof String) return (String) val;
+            }
+        } catch (Throwable ignored) {}
+
+        // Fall back to the currently observed Gboard field mapping.
         try {
             Field f = getField(preference.getClass(), "r");
             if (f != null) {
@@ -119,19 +144,21 @@ public class GlideTrailPreferences {
             }
         } catch (Throwable ignored) {}
 
-        // 2. Try getKey() method
-        try {
-            Method m = preference.getClass().getMethod("getKey");
-            Object val = m.invoke(preference);
-            if (val instanceof String) return (String) val;
-        } catch (Throwable ignored) {}
-
         return null;
     }
 
     public static Context getContext(Object preference) {
         if (preference == null) return null;
-        // 1. Try obfuscated field 'j'
+        // Prefer the framework accessor before relying on an obfuscated implementation detail.
+        try {
+            Method m = findMethod(preference.getClass(), "getContext");
+            if (m != null) {
+                Object val = m.invoke(preference);
+                if (val instanceof Context) return (Context) val;
+            }
+        } catch (Throwable ignored) {}
+
+        // Fall back to the currently observed Gboard field mapping.
         try {
             Field f = getField(preference.getClass(), "j");
             if (f != null) {
@@ -141,13 +168,172 @@ public class GlideTrailPreferences {
             }
         } catch (Throwable ignored) {}
 
-        // 2. Try getContext() method
-        try {
-            Method m = preference.getClass().getMethod("getContext");
-            Object val = m.invoke(preference);
-            if (val instanceof Context) return (Context) val;
-        } catch (Throwable ignored) {}
+        return null;
+    }
 
+    public static void setPreferenceClickListener(
+        Object preference,
+        final PreferenceClickHandler handler
+    ) {
+        setPreferenceListener(preference, 1, new PreferenceInvocationHandler() {
+            @Override
+            public boolean invoke(Object target, Object[] arguments) {
+                return handler.onClick(target);
+            }
+        });
+    }
+
+    public static void setPreferenceChangeListener(
+        Object preference,
+        final PreferenceChangeHandler handler
+    ) {
+        setPreferenceListener(preference, 2, new PreferenceInvocationHandler() {
+            @Override
+            public boolean invoke(Object target, Object[] arguments) {
+                return handler.onChange(target, arguments.length == 1 ? arguments[0] : arguments[1]);
+            }
+        }, true);
+    }
+
+    private interface PreferenceInvocationHandler {
+        boolean invoke(Object preference, Object[] arguments);
+    }
+
+    private static void setPreferenceListener(
+        final Object preference,
+        final int callbackArgumentCount,
+        final PreferenceInvocationHandler callback
+    ) {
+        setPreferenceListener(preference, callbackArgumentCount, callback, false);
+    }
+
+    private static void setPreferenceListener(
+        final Object preference,
+        final int callbackArgumentCount,
+        final PreferenceInvocationHandler callback,
+        final boolean objectValueFieldFallback
+    ) {
+        if (preference == null) return;
+        synchronized (LISTENER_LOCK) {
+            if (PREFERENCE_LISTENERS.containsKey(preference)) return;
+        }
+
+        try {
+            Method setter = findPreferenceListenerSetter(preference.getClass(), callbackArgumentCount);
+            Field listenerField = null;
+            final Class<?> listenerType;
+            if (setter != null) {
+                listenerType = setter.getParameterTypes()[0];
+            } else {
+                listenerField = findPreferenceListenerField(
+                    preference.getClass(),
+                    callbackArgumentCount,
+                    objectValueFieldFallback
+                );
+                if (listenerField == null) {
+                    throw new NoSuchMethodException("Preference listener callback was not found");
+                }
+                listenerType = listenerField.getType();
+            }
+            Object listener = Proxy.newProxyInstance(
+                listenerType.getClassLoader(),
+                new Class<?>[] { listenerType },
+                new InvocationHandler() {
+                    @Override
+                    public Object invoke(Object proxy, Method method, Object[] arguments) {
+                        if (method.getDeclaringClass() == Object.class) {
+                            if ("toString".equals(method.getName())) return "GboardCustomPreferenceListener";
+                            if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
+                            if ("equals".equals(method.getName())) {
+                                return arguments != null && arguments.length == 1 && proxy == arguments[0];
+                            }
+                        }
+                        if (arguments != null && arguments.length == callbackArgumentCount) {
+                            Object target = arguments[0] == null ? preference : arguments[0];
+                            return callback.invoke(target, arguments);
+                        }
+                        if (arguments != null && objectValueFieldFallback && arguments.length == 1) {
+                            return callback.invoke(preference, arguments);
+                        }
+                        return Boolean.FALSE;
+                    }
+                }
+            );
+            if (setter != null) {
+                setter.setAccessible(true);
+                setter.invoke(preference, listener);
+            } else {
+                listenerField.setAccessible(true);
+                listenerField.set(preference, listener);
+            }
+            synchronized (LISTENER_LOCK) {
+                PREFERENCE_LISTENERS.put(preference, Boolean.TRUE);
+            }
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+            Log.e(TAG, "Unable to initialize a Gboard customization preference.", exception);
+        }
+    }
+
+    private static Method findPreferenceListenerSetter(Class<?> type, int callbackArgumentCount) {
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            for (Method method : current.getDeclaredMethods()) {
+                if (
+                    method.getReturnType() == Void.TYPE &&
+                    method.getParameterTypes().length == 1 &&
+                    method.getParameterTypes()[0].isInterface() &&
+                    hasBooleanCallback(method.getParameterTypes()[0], callbackArgumentCount, type, false)
+                ) {
+                    return method;
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return null;
+    }
+
+    private static boolean hasBooleanCallback(
+        Class<?> listenerType,
+        int argumentCount,
+        Class<?> preferenceType,
+        boolean allowObjectFirstParameter
+    ) {
+        for (Method callback : listenerType.getMethods()) {
+            Class<?>[] parameters = callback.getParameterTypes();
+            if (
+                Modifier.isAbstract(callback.getModifiers()) &&
+                callback.getReturnType() == Boolean.TYPE &&
+                parameters.length == argumentCount &&
+                (allowObjectFirstParameter || parameters[0] != Object.class) &&
+                parameters[0].isAssignableFrom(preferenceType)
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Field findPreferenceListenerField(
+        Class<?> type,
+        int callbackArgumentCount,
+        boolean objectValueFieldFallback
+    ) {
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            for (Field field : current.getDeclaredFields()) {
+                Class<?> listenerType = field.getType();
+                if (!listenerType.isInterface()) continue;
+                if (
+                    objectValueFieldFallback &&
+                    hasBooleanCallback(listenerType, 1, Object.class, true)
+                ) return field;
+                if (
+                    !objectValueFieldFallback &&
+                    hasBooleanCallback(listenerType, callbackArgumentCount, type, false)
+                ) return field;
+            }
+            current = current.getSuperclass();
+        }
         return null;
     }
 

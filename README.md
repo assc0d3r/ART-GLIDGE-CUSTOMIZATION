@@ -7,8 +7,8 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
 - **Multilingual Suggestion:** optionally promote the first suggestion written in a different
   Unicode script beside Gboard's top candidate.
 - **Keyboard Icon Packs:** import raster icons from a WMKeyboard `.wmicons` or ZIP pack and use
-  matching icons for supported Gboard keys and toolbar buttons. Slots without a known Gboard
-  match are left unchanged.
+  matching icons for supported Gboard keys and toolbar buttons. The enabled state persists;
+  slots without a known Gboard match are left unchanged.
 - **Gboard Theme Studio:** create, edit, duplicate, import, and export themes; edit key/board
   colors, key shapes, corner radius, and theme-family looks.
 
@@ -48,5 +48,5 @@ or stickers. The default/system selection leaves Gboard's stock rendering untouc
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.6.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.7.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

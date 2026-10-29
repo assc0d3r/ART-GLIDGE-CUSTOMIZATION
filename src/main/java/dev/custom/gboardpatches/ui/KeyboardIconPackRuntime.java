@@ -16,15 +16,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -38,8 +35,6 @@ public final class KeyboardIconPackRuntime {
     private static final int MAX_ENTRIES = 400;
     private static final int MAX_IMAGE_DIMENSION = 4096;
     private static final int CACHE_KB = 4 * 1024;
-    private static final Object LISTENER_LOCK = new Object();
-    private static final WeakHashMap<Object, Boolean> LISTENER_INSTALLED = new WeakHashMap<>();
     private static final LruCache<String, Bitmap> BITMAP_CACHE = new LruCache<String, Bitmap>(CACHE_KB) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
@@ -58,7 +53,10 @@ public final class KeyboardIconPackRuntime {
             if (PREF_ENABLED.equals(key)) {
                 installEnabledListener(preference);
             } else if (PREF_IMPORT.equals(key)) {
-                installImportListener(preference);
+                GlideTrailPreferences.setPreferenceClickListener(preference, clickedPreference -> {
+                    launchImporter(GlideTrailPreferences.getContext(clickedPreference));
+                    return true;
+                });
             }
         }
     }
@@ -413,113 +411,28 @@ public final class KeyboardIconPackRuntime {
     }
 
     private static void installEnabledListener(final Object preference) {
-        if (isListenerInstalled(preference)) return;
-        Context context = GlideTrailPreferences.getContext(preference);
-        if (context == null) return;
-        try {
-            Method setChecked = findMethod(preference.getClass(), "setChecked", boolean.class);
-            if (setChecked != null) setChecked.invoke(preference, isEnabled(context));
-            Class<?> listenerType = Class.forName(
-                "androidx.preference.Preference$OnPreferenceChangeListener",
-                false,
-                preference.getClass().getClassLoader()
+        GlideTrailPreferences.setPreferenceChangeListener(preference, (changedPreference, value) -> {
+            if (!(value instanceof Boolean)) return false;
+            GlideTrailPreferences.savePrefBoolean(
+                GlideTrailPreferences.getContext(changedPreference),
+                PREF_ENABLED,
+                (Boolean) value
             );
-            Object listener = Proxy.newProxyInstance(
-                listenerType.getClassLoader(),
-                new Class<?>[] { listenerType },
-                new InvocationHandler() {
-                    @Override
-                    public Object invoke(Object proxy, Method method, Object[] args) {
-                        if ("onPreferenceChange".equals(method.getName()) && args != null && args.length > 1) {
-                            Object value = args[1];
-                            if (value instanceof Boolean) {
-                                Context preferenceContext = GlideTrailPreferences.getContext(preference);
-                                GlideTrailPreferences.savePrefBoolean(
-                                    preferenceContext,
-                                    PREF_ENABLED,
-                                    (Boolean) value
-                                );
-                            }
-                            return true;
-                        }
-                        return objectMethodResult(proxy, method, args);
-                    }
-                }
-            );
-            invokePreferenceSetter(preference, "setOnPreferenceChangeListener", listenerType, listener);
-            markListenerInstalled(preference);
-        } catch (ReflectiveOperationException | LinkageError exception) {
-            Log.e(TAG, "Unable to initialize the keyboard-icon setting.", exception);
-        }
-    }
-
-    private static void installImportListener(final Object preference) {
-        if (isListenerInstalled(preference)) return;
-        try {
-            Class<?> listenerType = Class.forName(
-                "androidx.preference.Preference$OnPreferenceClickListener",
-                false,
-                preference.getClass().getClassLoader()
-            );
-            Object listener = Proxy.newProxyInstance(
-                listenerType.getClassLoader(),
-                new Class<?>[] { listenerType },
-                new InvocationHandler() {
-                    @Override
-                    public Object invoke(Object proxy, Method method, Object[] args) {
-                        if ("onPreferenceClick".equals(method.getName())) {
-                            launchImporter(GlideTrailPreferences.getContext(preference));
-                            return true;
-                        }
-                        return objectMethodResult(proxy, method, args);
-                    }
-                }
-            );
-            invokePreferenceSetter(preference, "setOnPreferenceClickListener", listenerType, listener);
-            markListenerInstalled(preference);
-        } catch (ReflectiveOperationException | LinkageError exception) {
-            Log.e(TAG, "Unable to initialize the icon-pack import action.", exception);
-        }
-    }
-
-    private static boolean isListenerInstalled(Object preference) {
-        synchronized (LISTENER_LOCK) {
-            return LISTENER_INSTALLED.containsKey(preference);
-        }
-    }
-
-    private static void markListenerInstalled(Object preference) {
-        synchronized (LISTENER_LOCK) {
-            LISTENER_INSTALLED.put(preference, Boolean.TRUE);
-        }
-    }
-
-    private static void invokePreferenceSetter(
-        Object preference,
-        String setterName,
-        Class<?> listenerType,
-        Object listener
-    ) throws ReflectiveOperationException {
-        Method setter = findMethod(preference.getClass(), setterName, listenerType);
-        if (setter == null) throw new NoSuchMethodException(setterName);
-        setter.invoke(preference, listener);
-    }
-
-    private static Object objectMethodResult(Object proxy, Method method, Object[] args) {
-        if ("toString".equals(method.getName())) return "KeyboardIconPackPreferenceListener";
-        if ("hashCode".equals(method.getName())) return System.identityHashCode(proxy);
-        if ("equals".equals(method.getName())) return args != null && args.length == 1 && proxy == args[0];
-        return null;
+            return true;
+        });
     }
 
     private static void launchImporter(Context context) {
-        if (context == null) return;
+        if (context == null) {
+            Log.e(TAG, "Unable to open the icon-pack picker: preference context is unavailable.");
+            return;
+        }
         try {
             Intent intent = new Intent(context, KeyboardIconPackImportActivity.class);
             if (!(context instanceof Activity)) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(intent);
-        } catch (android.content.ActivityNotFoundException exception) {
-            Log.e(TAG, "The icon-pack import activity is unavailable.", exception);
+        } catch (RuntimeException exception) {
+            Log.e(TAG, "Unable to open the icon-pack file picker.", exception);
             Toast.makeText(context, "Unable to open the icon-pack file picker.", Toast.LENGTH_LONG).show();
         }
     }
