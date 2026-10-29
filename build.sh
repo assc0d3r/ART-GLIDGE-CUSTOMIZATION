@@ -119,7 +119,7 @@ TIMESTAMP="$(date +%s000)"
 cat << EOF > "${MANIFEST_FILE}"
 Manifest-Version: 1.0
 Name: Gboard Customizations
-Description: Gboard glide trail customization, multilingual suggestions, and WMKeyboard icon packs.
+Description: Gboard glide trail customization, multilingual suggestions, WMKeyboard icon packs, and Theme Studio.
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
 Source: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION

@@ -64,6 +64,9 @@ jobs:
             that use the same script.
           - Import WMKeyboard `.wmicons`/ZIP packs and apply icons to supported Gboard keys and
             toolbar buttons. Slots without a known Gboard match are left unchanged.
+          - Use Gboard Theme Studio to edit colors, key shapes, corner radius, and theme looks,
+            with WMKeyboard theme JSON import/export. This is an incremental first layer; advanced
+            image, texture, animation, and toolbar/popup styling are not yet implemented.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.
 
           #### 📱 Add to Morphe App

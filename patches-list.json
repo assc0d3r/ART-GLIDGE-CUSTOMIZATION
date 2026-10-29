@@ -1,5 +1,5 @@
 {
-  "version": "1.0.5",
+  "version": "1.0.6",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -18,6 +18,13 @@
     {
       "name": "Keyboard Icon Packs",
       "description": "Import a WMKeyboard .wmicons or ZIP pack and use icons matching Gboard keys and toolbar buttons; unsupported slots are skipped.",
+      "use": true,
+      "dependencies": [],
+      "options": []
+    },
+    {
+      "name": "Gboard Theme Studio",
+      "description": "Create and edit theme colors, key shapes, board backgrounds, and looks; import or export WMKeyboard theme JSON.",
       "use": true,
       "dependencies": [],
       "options": []

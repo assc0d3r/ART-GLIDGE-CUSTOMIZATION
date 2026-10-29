@@ -1,4 +1,4 @@
-# Gboard Glide Trail, Multilingual Suggestions, and Icon Packs
+# Gboard Customizations
 
 A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) containing:
 
@@ -9,10 +9,12 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
 - **Keyboard Icon Packs:** import raster icons from a WMKeyboard `.wmicons` or ZIP pack and use
   matching icons for supported Gboard keys and toolbar buttons. Slots without a known Gboard
   match are left unchanged.
+- **Gboard Theme Studio:** create, edit, duplicate, import, and export themes; edit key/board
+  colors, key shapes, corner radius, and theme-family looks.
 
-The patches are exposed as experimental, version-unpinned Gboard targets. They still rely on
+All patches are exposed as experimental, version-unpinned Gboard targets. They still rely on
 Gboard's internal classes and settings resources; versions that change those structures may not
-be patchable.
+be patchable. Version-unpinned does not guarantee compatibility with every Gboard release.
 
 The multilingual option is a best-effort heuristic, not language detection: it preserves Gboard's
 first candidate and promotes the first candidate with a different writing script. It affects both
@@ -24,6 +26,13 @@ the archive and image dimensions before storing icons in Gboard's private app st
 slots that cannot be mapped to Gboard metadata are not applied. The icon patch is also experimental:
 Gboard changes its internal key rendering and settings structures between releases, so an unpinned
 target does not guarantee every version will patch or expose every icon.
+
+Theme Studio is an incremental first layer, not full WMKeyboard editor parity. It supports color
+editing, a selection of key shapes, corner radius, board solid/linear-gradient fills, up to 13 looks,
+undo/redo, and WMKeyboard `.wmtheme.json` import/export while preserving unrecognized JSON fields.
+Imported colors may be hex strings or numbers. The current renderer does not yet implement wallpaper
+color matching, background images, textures, animation, toolbar/popup/panel styling, per-key styles,
+or stickers. The default/system selection leaves Gboard's stock rendering untouched.
 
 ## Use in Morphe
 
@@ -39,5 +48,5 @@ target does not guarantee every version will patch or expose every icon.
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.5.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.6.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.
