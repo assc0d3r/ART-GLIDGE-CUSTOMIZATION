@@ -64,10 +64,11 @@ final class ThemeKeyDrawable extends Drawable {
         RectF rect = new RectF(bounds.left + halfBorder, bounds.top + halfBorder,
             bounds.right - halfBorder, bounds.bottom - halfBorder);
         buildPath(rect);
-        fillPaint.setColor(pressed ? pressedColor : normalColor);
+        Shader keyGradient = pressed ? null : gradient(rect);
+        fillPaint.setColor(keyGradient == null ? (pressed ? pressedColor : normalColor) : android.graphics.Color.WHITE);
         fillPaint.setAlpha(alpha);
         fillPaint.setColorFilter(colorFilter);
-        fillPaint.setShader(pressed ? null : gradient(rect));
+        fillPaint.setShader(keyGradient);
         canvas.drawPath(path, fillPaint);
         fillPaint.setShader(null);
         if (borderWidth > 0f) {

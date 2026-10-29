@@ -50,9 +50,7 @@ public final class KeyboardIconPackRuntime {
         collectPreferences(preferenceGroup, preferences);
         for (Object preference : preferences) {
             String key = GlideTrailPreferences.getKey(preference);
-            if (PREF_ENABLED.equals(key)) {
-                installEnabledListener(preference);
-            } else if (PREF_IMPORT.equals(key)) {
+            if (PREF_IMPORT.equals(key)) {
                 GlideTrailPreferences.setPreferenceClickListener(preference, clickedPreference -> {
                     launchImporter(GlideTrailPreferences.getContext(clickedPreference));
                     return true;
@@ -73,18 +71,6 @@ public final class KeyboardIconPackRuntime {
         } catch (ReflectiveOperationException | RuntimeException exception) {
             Log.w(TAG, "Unable to clear Gboard's icon tint.", exception);
         }
-    }
-
-    private static void installEnabledListener(final Object preference) {
-        GlideTrailPreferences.setPreferenceChangeListener(preference, (changedPreference, value) -> {
-            if (!(value instanceof Boolean)) return false;
-            GlideTrailPreferences.savePrefBoolean(
-                GlideTrailPreferences.getContext(changedPreference),
-                PREF_ENABLED,
-                (Boolean) value
-            );
-            return true;
-        });
     }
 
     public static void applyIcon(View softKeyView, Object softKeyDef, int imageViewId) {
@@ -456,8 +442,14 @@ public final class KeyboardIconPackRuntime {
 
     private static boolean isEnabled(Context context) {
         try {
-            SharedPreferences preferences = GlideTrailPreferences.getPrefs(context);
-            return preferences != null && preferences.getBoolean(PREF_ENABLED, false);
+            SharedPreferences preferences =
+                android.preference.PreferenceManager.getDefaultSharedPreferences(context);
+            if (preferences != null && preferences.contains(PREF_ENABLED)) {
+                return preferences.getBoolean(PREF_ENABLED, false);
+            }
+            SharedPreferences deviceProtectedPreferences = GlideTrailPreferences.getPrefs(context);
+            return deviceProtectedPreferences != null &&
+                deviceProtectedPreferences.getBoolean(PREF_ENABLED, false);
         } catch (RuntimeException exception) {
             Log.w(TAG, "Unable to read the keyboard-icon setting.", exception);
             return false;
