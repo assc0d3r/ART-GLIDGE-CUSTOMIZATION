@@ -7,8 +7,8 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
 - **Multilingual Suggestion:** optionally promote the first suggestion written in a different
   Unicode script beside Gboard's top candidate.
 - **Keyboard Icon Packs:** import raster icons from a WMKeyboard `.wmicons` or ZIP pack and use
-  matching icons for supported Gboard keys and toolbar buttons. The enabled state persists;
-  slots without a known Gboard match are left unchanged.
+  matching icons for supported Gboard keys and toolbar buttons. Gboard's persistent switch stores
+  the enabled state; key metadata and accessibility labels are used to find supported slots.
 - **Gboard Theme Studio:** create, edit, duplicate, import, and export themes; edit key/board
   colors, key shapes, corner radius, and theme-family looks.
 
@@ -28,9 +28,10 @@ Gboard changes its internal key rendering and settings structures between releas
 target does not guarantee every version will patch or expose every icon.
 
 Theme Studio is an incremental first layer, not full WMKeyboard editor parity. It supports color
-editing, a selection of key shapes, corner radius, board solid/linear-gradient fills, up to 13 looks,
-undo/redo, and WMKeyboard `.wmtheme.json` import/export while preserving unrecognized JSON fields.
-Imported colors may be hex strings or numbers. The current renderer does not yet implement wallpaper
+editing, a selection of key shapes, corner radius, key solid/linear/radial/sweep gradients, board
+solid/linear-gradient fills, up to 13 looks, undo/redo, and WMKeyboard `.wmtheme.json` import/export
+while preserving unrecognized JSON fields. Imported colors may be hex strings or numbers. The
+current renderer does not yet implement wallpaper
 color matching, background images, textures, animation, toolbar/popup/panel styling, per-key styles,
 or stickers. The default/system selection leaves Gboard's stock rendering untouched.
 
@@ -48,5 +49,5 @@ or stickers. The default/system selection leaves Gboard's stock rendering untouc
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.7.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.8.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

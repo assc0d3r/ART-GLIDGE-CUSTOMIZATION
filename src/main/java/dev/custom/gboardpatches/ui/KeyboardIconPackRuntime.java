@@ -61,6 +61,32 @@ public final class KeyboardIconPackRuntime {
         }
     }
 
+    private static void clearImageTint(ImageView image) {
+        try {
+            Method method = ImageView.class.getMethod(
+                "setImageTintList",
+                android.content.res.ColorStateList.class
+            );
+            method.invoke(image, new Object[] { null });
+        } catch (NoSuchMethodException ignored) {
+            // Image tint lists are unavailable on older Android versions.
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            Log.w(TAG, "Unable to clear Gboard's icon tint.", exception);
+        }
+    }
+
+    private static void installEnabledListener(final Object preference) {
+        GlideTrailPreferences.setPreferenceChangeListener(preference, (changedPreference, value) -> {
+            if (!(value instanceof Boolean)) return false;
+            GlideTrailPreferences.savePrefBoolean(
+                GlideTrailPreferences.getContext(changedPreference),
+                PREF_ENABLED,
+                (Boolean) value
+            );
+            return true;
+        });
+    }
+
     public static void applyIcon(View softKeyView, Object softKeyDef, int imageViewId) {
         if (softKeyView == null || softKeyDef == null) return;
         Context context = softKeyView.getContext();
@@ -81,7 +107,10 @@ public final class KeyboardIconPackRuntime {
         }
         View iconView = softKeyView.findViewById(imageViewId);
         if (iconView instanceof ImageView) {
-            ((ImageView) iconView).setImageBitmap(bitmap);
+            ImageView image = (ImageView) iconView;
+            image.setColorFilter((android.graphics.ColorFilter) null);
+            clearImageTint(image);
+            image.setImageBitmap(bitmap);
         }
     }
 
@@ -410,18 +439,6 @@ public final class KeyboardIconPackRuntime {
         }
     }
 
-    private static void installEnabledListener(final Object preference) {
-        GlideTrailPreferences.setPreferenceChangeListener(preference, (changedPreference, value) -> {
-            if (!(value instanceof Boolean)) return false;
-            GlideTrailPreferences.savePrefBoolean(
-                GlideTrailPreferences.getContext(changedPreference),
-                PREF_ENABLED,
-                (Boolean) value
-            );
-            return true;
-        });
-    }
-
     private static void launchImporter(Context context) {
         if (context == null) {
             Log.e(TAG, "Unable to open the icon-pack picker: preference context is unavailable.");
@@ -485,6 +502,22 @@ public final class KeyboardIconPackRuntime {
         if (containsAny(lower, "show keys")) return "chrome.show_keys";
         if (containsAny(lower, "expand suggestions", "more suggestions")) return "chrome.suggestions_expand";
         if (containsAny(lower, "close search")) return "chrome.search_close";
+        if (containsAny(lower, "shift lock", "caps lock")) return "key.shift_lock";
+        if (containsAny(lower, "shift on", "shift enabled")) return "key.shift_on";
+        if (containsAny(lower, "shift")) return "key.shift";
+        if (containsAny(lower, "backspace", "delete previous")) return "key.backspace";
+        if (containsAny(lower, "forward delete", "delete next")) return "key.forward_delete";
+        if (containsAny(lower, "tab")) return "key.tab";
+        if (containsAny(lower, "enter search", "search key")) return "key.enter_search";
+        if (containsAny(lower, "enter send", "send key")) return "key.enter_send";
+        if (containsAny(lower, "enter done", "done key")) return "key.enter_done";
+        if (containsAny(lower, "enter next", "next key")) return "key.enter_next";
+        if (containsAny(lower, "enter previous", "previous key")) return "key.enter_previous";
+        if (containsAny(lower, "enter go", "go key")) return "key.enter_go";
+        if (containsAny(lower, "enter", "return")) return "key.enter";
+        if (containsAny(lower, "input method", "change keyboard")) return "key.input_method_picker";
+        if (containsAny(lower, "globe", "language switch")) return "key.globe";
+        if (containsAny(lower, "search")) return "key.enter_search";
         return null;
     }
 

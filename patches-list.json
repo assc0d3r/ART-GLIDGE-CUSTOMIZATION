@@ -1,5 +1,5 @@
 {
-  "version": "1.0.7",
+  "version": "1.0.8",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -17,7 +17,7 @@
     },
     {
       "name": "Keyboard Icon Packs",
-      "description": "Import a WMKeyboard .wmicons or ZIP pack, persist the enabled state, and use matching Gboard icons; unsupported slots are skipped.",
+      "description": "Import WMKeyboard icon packs and apply matching icons using key metadata or accessibility labels; unsupported slots are skipped.",
       "use": true,
       "dependencies": [],
       "options": []

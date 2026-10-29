@@ -304,8 +304,11 @@ public class GlideTrailPreferences {
                 Modifier.isAbstract(callback.getModifiers()) &&
                 callback.getReturnType() == Boolean.TYPE &&
                 parameters.length == argumentCount &&
-                (allowObjectFirstParameter || parameters[0] != Object.class) &&
-                parameters[0].isAssignableFrom(preferenceType)
+                (
+                    allowObjectFirstParameter
+                        ? parameters[0] == Object.class
+                        : parameters[0] != Object.class && parameters[0].isAssignableFrom(preferenceType)
+                )
             ) {
                 return true;
             }

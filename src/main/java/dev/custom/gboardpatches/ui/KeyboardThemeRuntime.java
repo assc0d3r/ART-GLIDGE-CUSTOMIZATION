@@ -75,8 +75,22 @@ public final class KeyboardThemeRuntime {
             float radius = (float) ThemeDocument.number(theme, "keyCornerRadiusDp", 6) * density;
             float borderWidth = (float) ThemeDocument.number(theme, "keyBorderWidthDp", 0) * density;
             String shape = ThemeDocument.string(theme, "keyShape", "ROUNDED");
+            Map<String, Object> gradient = ThemeDocument.object(theme.get("keyGradient"));
+            int[] gradientColors = colors(gradient, background);
+            String gradientType = ThemeDocument.string(gradient, "type", "LINEAR");
+            float gradientAngle = (float) ThemeDocument.number(gradient, "angleDeg", 45);
 
-            keyView.setBackground(new ThemeKeyDrawable(background, pressed, border, borderWidth, radius, shape));
+            keyView.setBackground(new ThemeKeyDrawable(
+                background,
+                pressed,
+                border,
+                borderWidth,
+                radius,
+                shape,
+                gradientColors,
+                gradientType,
+                gradientAngle
+            ));
             setTextColors(keyView, keyText);
         } catch (RuntimeException exception) {
             Log.w(TAG, "Unable to apply the selected Gboard theme to a key.", exception);
@@ -131,6 +145,18 @@ public final class KeyboardThemeRuntime {
 
     private static int color(Map<String, Object> theme, String key, int fallback) {
         return ThemeDocument.color(theme, key, fallback);
+    }
+
+    private static int[] colors(Map<String, Object> gradient, int fallback) {
+        List<Object> values = ThemeDocument.array(gradient.get("colors"));
+        if (values.size() < 2 || values.size() > 12) return new int[0];
+        int[] result = new int[values.size()];
+        for (int index = 0; index < result.length; index++) {
+            Map<String, Object> colorValue = new java.util.HashMap<>();
+            colorValue.put("value", values.get(index));
+            result[index] = ThemeDocument.color(colorValue, "value", fallback);
+        }
+        return result;
     }
 
     private static int blend(int first, int second) {

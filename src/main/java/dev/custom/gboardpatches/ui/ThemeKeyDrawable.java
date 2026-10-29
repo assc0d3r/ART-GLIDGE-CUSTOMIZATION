@@ -6,6 +6,10 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
+import android.graphics.RadialGradient;
+import android.graphics.Shader;
+import android.graphics.SweepGradient;
+import android.graphics.LinearGradient;
 import android.graphics.drawable.Drawable;
 
 final class ThemeKeyDrawable extends Drawable {
@@ -20,6 +24,9 @@ final class ThemeKeyDrawable extends Drawable {
     private final float borderWidth;
     private final float radius;
     private final String shape;
+    private final int[] gradientColors;
+    private final String gradientType;
+    private final float gradientAngle;
     private boolean pressed;
     private int alpha = 255;
     private ColorFilter colorFilter;
@@ -30,7 +37,10 @@ final class ThemeKeyDrawable extends Drawable {
         int borderColor,
         float borderWidth,
         float radius,
-        String shape
+        String shape,
+        int[] gradientColors,
+        String gradientType,
+        float gradientAngle
     ) {
         this.normalColor = normalColor;
         this.pressedColor = pressedColor;
@@ -38,6 +48,9 @@ final class ThemeKeyDrawable extends Drawable {
         this.borderWidth = borderWidth;
         this.radius = radius;
         this.shape = shape;
+        this.gradientColors = gradientColors == null ? new int[0] : gradientColors.clone();
+        this.gradientType = gradientType;
+        this.gradientAngle = gradientAngle;
         fillPaint.setStyle(Paint.Style.FILL);
         borderPaint.setStyle(Paint.Style.STROKE);
         borderPaint.setStrokeWidth(borderWidth);
@@ -54,7 +67,9 @@ final class ThemeKeyDrawable extends Drawable {
         fillPaint.setColor(pressed ? pressedColor : normalColor);
         fillPaint.setAlpha(alpha);
         fillPaint.setColorFilter(colorFilter);
+        fillPaint.setShader(pressed ? null : gradient(rect));
         canvas.drawPath(path, fillPaint);
+        fillPaint.setShader(null);
         if (borderWidth > 0f) {
             borderPaint.setColor(borderColor);
             borderPaint.setAlpha(alpha);
@@ -102,7 +117,7 @@ final class ThemeKeyDrawable extends Drawable {
         float shortSide = Math.min(width, height);
         float corner = Math.max(0f, Math.min(radius, shortSide / 2f));
 
-        if ("SHARP".equals(kind) || "SQUARE".equals(kind)) {
+        if ("SHARP".equals(kind) || "SQUARE".equals(kind) || "NONE".equals(kind)) {
             path.addRect(rect, Path.Direction.CW);
         } else if ("PILL".equals(kind)) {
             path.addRoundRect(rect, shortSide / 2f, shortSide / 2f, Path.Direction.CW);
@@ -154,5 +169,35 @@ final class ThemeKeyDrawable extends Drawable {
             float curve = "SQUIRCLE".equals(kind) ? corner * 1.25f : corner;
             path.addRoundRect(rect, curve, curve, Path.Direction.CW);
         }
+    }
+
+    private Shader gradient(RectF rect) {
+        if (gradientColors.length < 2) return null;
+        String type = gradientType == null ? "LINEAR" : gradientType.toUpperCase(java.util.Locale.ROOT);
+        if ("SWEEP".equals(type)) {
+            return new SweepGradient(rect.centerX(), rect.centerY(), gradientColors, null);
+        }
+        if ("RADIAL".equals(type)) {
+            return new RadialGradient(
+                rect.centerX(),
+                rect.centerY(),
+                Math.max(rect.width(), rect.height()) / 2f,
+                gradientColors,
+                null,
+                Shader.TileMode.CLAMP
+            );
+        }
+        double radians = Math.toRadians(gradientAngle);
+        float dx = (float) Math.cos(radians) * rect.width() / 2f;
+        float dy = (float) Math.sin(radians) * rect.height() / 2f;
+        return new LinearGradient(
+            rect.centerX() - dx,
+            rect.centerY() - dy,
+            rect.centerX() + dx,
+            rect.centerY() + dy,
+            gradientColors,
+            null,
+            Shader.TileMode.CLAMP
+        );
     }
 }
