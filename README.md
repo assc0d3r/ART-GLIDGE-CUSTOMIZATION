@@ -1,4 +1,4 @@
-# Gboard Glide Trail and Multilingual Suggestions
+# Gboard Glide Trail, Multilingual Suggestions, and Icon Packs
 
 A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) containing:
 
@@ -6,6 +6,9 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
   duration, width, and point retention.
 - **Multilingual Suggestion:** optionally promote the first suggestion written in a different
   Unicode script beside Gboard's top candidate.
+- **Keyboard Icon Packs:** import raster icons from a WMKeyboard `.wmicons` or ZIP pack and use
+  matching icons for supported Gboard keys and toolbar buttons. Slots without a known Gboard
+  match are left unchanged.
 
 The patches are exposed as experimental, version-unpinned Gboard targets. They still rely on
 Gboard's internal classes and settings resources; versions that change those structures may not
@@ -16,20 +19,25 @@ first candidate and promotes the first candidate with a different writing script
 glide and ordinary suggestion rows, cannot distinguish languages that use the same script (such as
 English and Hinglish), and does not rotate between language models.
 
+The icon-pack importer accepts `pack.json` version 1 with PNG, WebP, JPEG, or GIF icons. It validates
+the archive and image dimensions before storing icons in Gboard's private app storage. SVG icons and
+slots that cannot be mapped to Gboard metadata are not applied. The icon patch is also experimental:
+Gboard changes its internal key rendering and settings structures between releases, so an unpinned
+target does not guarantee every version will patch or expose every icon.
+
 ## Use in Morphe
 
 1. Add this repository as a Morphe source:
    `https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION`
-2. Select Gboard in the Patcher and enable either **Glide Trail Customization** or
-   **Multilingual Suggestion**.
+2. Select Gboard in the Patcher and enable the desired customization patch.
 3. Apply the patch and install the generated APK.
-4. For multilingual suggestions, enable **Script-aware suggestions** in Gboard's Glide typing
-   settings.
+4. Configure the relevant option in Gboard Settings. For icon packs, open **Keyboard Icon Packs**,
+   import the `.wmicons`/ZIP file, and enable **Use imported keyboard icons**.
 
 ## Build
 
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.4.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.5.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

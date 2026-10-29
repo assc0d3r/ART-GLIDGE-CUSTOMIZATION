@@ -62,6 +62,8 @@ jobs:
           - Optionally promote suggestions written in a different Unicode script. This best-effort
             heuristic affects glide and ordinary suggestion rows and cannot distinguish languages
             that use the same script.
+          - Import WMKeyboard `.wmicons`/ZIP packs and apply icons to supported Gboard keys and
+            toolbar buttons. Slots without a known Gboard match are left unchanged.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.
 
           #### 📱 Add to Morphe App

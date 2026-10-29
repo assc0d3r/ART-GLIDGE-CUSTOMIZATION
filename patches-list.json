@@ -1,5 +1,5 @@
 {
-  "version": "1.0.4",
+  "version": "1.0.5",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -11,6 +11,13 @@
     {
       "name": "Multilingual Suggestion",
       "description": "Promote the first glide or typing candidate written in a different Unicode script.",
+      "use": true,
+      "dependencies": [],
+      "options": []
+    },
+    {
+      "name": "Keyboard Icon Packs",
+      "description": "Import a WMKeyboard .wmicons or ZIP pack and use icons matching Gboard keys and toolbar buttons; unsupported slots are skipped.",
       "use": true,
       "dependencies": [],
       "options": []
