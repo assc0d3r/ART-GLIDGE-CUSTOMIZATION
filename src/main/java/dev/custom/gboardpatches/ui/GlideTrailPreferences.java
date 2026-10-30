@@ -9,6 +9,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
@@ -235,6 +237,17 @@ public class GlideTrailPreferences {
                 }
                 listenerType = listenerField.getType();
             }
+            final boolean objectValueListener =
+                setter == null && objectValueFieldFallback;
+            final Method callbackMethod = findBooleanCallback(
+                listenerType,
+                objectValueListener ? 1 : callbackArgumentCount,
+                objectValueListener ? Object.class : preference.getClass(),
+                objectValueListener
+            );
+            if (callbackMethod == null) {
+                throw new NoSuchMethodException("Preference listener callback was not found");
+            }
             Object listener = Proxy.newProxyInstance(
                 listenerType.getClassLoader(),
                 new Class<?>[] { listenerType },
@@ -248,14 +261,16 @@ public class GlideTrailPreferences {
                                 return arguments != null && arguments.length == 1 && proxy == arguments[0];
                             }
                         }
-                        if (arguments != null && arguments.length == callbackArgumentCount) {
-                            Object target = arguments[0] == null ? preference : arguments[0];
-                            return callback.invoke(target, arguments);
+                        if (isCallbackMethod(method, callbackMethod) && arguments != null) {
+                            if (arguments.length == callbackArgumentCount) {
+                                Object target = arguments[0] == null ? preference : arguments[0];
+                                return callback.invoke(target, arguments);
+                            }
+                            if (objectValueFieldFallback && arguments.length == 1) {
+                                return callback.invoke(preference, arguments);
+                            }
                         }
-                        if (arguments != null && objectValueFieldFallback && arguments.length == 1) {
-                            return callback.invoke(preference, arguments);
-                        }
-                        return Boolean.FALSE;
+                        return defaultValue(method.getReturnType());
                     }
                 }
             );
@@ -272,6 +287,35 @@ public class GlideTrailPreferences {
         } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
             Log.e(TAG, "Unable to initialize a Gboard customization preference.", exception);
         }
+    }
+
+    private static boolean isCallbackMethod(Method method, Method callbackMethod) {
+        if (
+            !method.getName().equals(callbackMethod.getName()) ||
+            method.getReturnType() != callbackMethod.getReturnType()
+        ) {
+            return false;
+        }
+        Class<?>[] parameters = method.getParameterTypes();
+        Class<?>[] callbackParameters = callbackMethod.getParameterTypes();
+        if (parameters.length != callbackParameters.length) return false;
+        for (int index = 0; index < parameters.length; index++) {
+            if (parameters[index] != callbackParameters[index]) return false;
+        }
+        return true;
+    }
+
+    private static Object defaultValue(Class<?> returnType) {
+        if (!returnType.isPrimitive() || returnType == Void.TYPE) return null;
+        if (returnType == Boolean.TYPE) return Boolean.FALSE;
+        if (returnType == Character.TYPE) return Character.valueOf('\0');
+        if (returnType == Byte.TYPE) return Byte.valueOf((byte) 0);
+        if (returnType == Short.TYPE) return Short.valueOf((short) 0);
+        if (returnType == Integer.TYPE) return Integer.valueOf(0);
+        if (returnType == Long.TYPE) return Long.valueOf(0L);
+        if (returnType == Float.TYPE) return Float.valueOf(0F);
+        if (returnType == Double.TYPE) return Double.valueOf(0D);
+        return null;
     }
 
     private static Method findPreferenceListenerSetter(Class<?> type, int callbackArgumentCount) {
@@ -298,11 +342,28 @@ public class GlideTrailPreferences {
         Class<?> preferenceType,
         boolean allowObjectFirstParameter
     ) {
+        return findBooleanCallback(
+            listenerType,
+            argumentCount,
+            preferenceType,
+            allowObjectFirstParameter
+        ) != null;
+    }
+
+    private static Method findBooleanCallback(
+        Class<?> listenerType,
+        int argumentCount,
+        Class<?> preferenceType,
+        boolean allowObjectFirstParameter
+    ) {
+        Set<String> abstractSignatures = new HashSet<>();
+        Method matchingCallback = null;
         for (Method callback : listenerType.getMethods()) {
+            if (!Modifier.isAbstract(callback.getModifiers())) continue;
             Class<?>[] parameters = callback.getParameterTypes();
-            if (
-                Modifier.isAbstract(callback.getModifiers()) &&
-                callback.getReturnType() == Boolean.TYPE &&
+            if (isObjectMethod(callback)) continue;
+            abstractSignatures.add(methodSignature(callback));
+            if (callback.getReturnType() == Boolean.TYPE &&
                 parameters.length == argumentCount &&
                 (
                     allowObjectFirstParameter
@@ -310,10 +371,27 @@ public class GlideTrailPreferences {
                         : parameters[0] != Object.class && parameters[0].isAssignableFrom(preferenceType)
                 )
             ) {
-                return true;
+                matchingCallback = callback;
             }
         }
-        return false;
+        return abstractSignatures.size() == 1 ? matchingCallback : null;
+    }
+
+    private static boolean isObjectMethod(Method method) {
+        if ("equals".equals(method.getName())) {
+            return method.getParameterTypes().length == 1 &&
+                method.getParameterTypes()[0] == Object.class;
+        }
+        return ("hashCode".equals(method.getName()) || "toString".equals(method.getName())) &&
+            method.getParameterTypes().length == 0;
+    }
+
+    private static String methodSignature(Method method) {
+        StringBuilder signature = new StringBuilder(method.getName()).append('(');
+        for (Class<?> parameter : method.getParameterTypes()) {
+            signature.append(parameter.getName()).append(';');
+        }
+        return signature.append(')').toString();
     }
 
     private static Field findPreferenceListenerField(

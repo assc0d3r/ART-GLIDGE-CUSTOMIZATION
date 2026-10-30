@@ -69,6 +69,8 @@ jobs:
             with WMKeyboard theme JSON import/export. This is an incremental first layer; advanced
             image, texture, animation, and toolbar/popup styling are not yet implemented.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.
+          - Fix preference-listener proxy return types that could crash Gboard Settings when
+            toggling switches.
 
           #### 📱 Add to Morphe App
           1. Open the **Morphe** app on your Android device.
