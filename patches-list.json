@@ -1,5 +1,5 @@
 {
-  "version": "1.0.10",
+  "version": "1.0.11",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -24,7 +24,7 @@
     },
     {
       "name": "Gboard Theme Studio",
-      "description": "Open Theme Studio from Gboard settings to edit theme colors, key shapes, board backgrounds, and looks.",
+      "description": "Convert Theme Studio colors and corner radius into Gboard-native ZIP themes; native activation currently targets Gboard 18.5.4.",
       "use": true,
       "dependencies": [],
       "options": []

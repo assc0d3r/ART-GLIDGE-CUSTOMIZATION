@@ -18,10 +18,15 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -30,11 +35,105 @@ public final class KeyboardIconPackRuntime {
     public static final String PREF_IMPORT = "pref_key_keyboard_icon_pack_import";
     private static final String TAG = "KeyboardIconPacks";
     private static final String PACK_FORMAT = "wmkeyboard-icons";
+    private static final Pattern SLOT_TOKEN =
+        Pattern.compile("\\b(?:tool|key|chrome)\\.[a-z0-9_]+\\b");
+    private static final Set<String> LOGGED_DIAGNOSTICS =
+        Collections.synchronizedSet(new HashSet<String>());
     private static final int MAX_ARCHIVE_BYTES = 24 * 1024 * 1024;
     private static final int MAX_ENTRY_BYTES = 4 * 1024 * 1024;
     private static final int MAX_ENTRIES = 400;
     private static final int MAX_IMAGE_DIMENSION = 4096;
     private static final int CACHE_KB = 4 * 1024;
+    private static final String[][] NAMED_SLOT_ALIASES = {
+        { "tool.flashlight", "flashlight", "torch" },
+        { "tool.compass", "compass" },
+        { "tool.moon_phase", "moon phase", "moon_phase" },
+        { "tool.weather", "weather", "forecast" },
+        { "tool.calendar", "calendar" },
+        { "tool.sound_haptics", "sound and haptics", "sound haptics", "vibration settings" },
+        { "tool.trackpad", "trackpad", "touchpad" },
+        { "tool.level", "level tool", "spirit level" },
+        { "tool.image_search", "image search", "search by image" },
+        { "tool.doc_scan", "document scan", "scan document" },
+        { "tool.qr_scan", "qr scan", "scan qr" },
+        { "tool.snippets", "snippets", "text snippets" },
+        { "tool.split", "split keyboard" },
+        { "tool.numpad", "numeric keypad", "numpad" },
+        { "tool.wikipedia", "wikipedia" },
+        { "tool.gallery", "gallery", "photos" },
+        { "tool.calculator", "calculator" },
+        { "tool.autocorrect", "autocorrect", "auto-correction" },
+        { "tool.ocr", "ocr", "text recognition" },
+        { "tool.symbols", "symbols", "symbol keyboard" },
+        { "tool.unit_convert", "unit convert", "unit conversion" },
+        { "tool.currency", "currency converter", "currency conversion" },
+        { "tool.qr_gen", "qr generator", "generate qr" },
+        { "tool.password_gen", "password generator", "generate password" },
+        { "tool.ai", " ai tool", "artificial intelligence" },
+        { "tool.modes", "keyboard modes", "input modes" },
+        { "tool.app_launcher", "app launcher", "launch app" },
+        { "tool.typing_test", "typing test" },
+        { "tool.media_control", "media control", "media controls" },
+        { "tool.plugins", "plugins", "extensions" },
+        { "tool.power_saving", "power saving", "battery saving" },
+        { "tool.fancy", "fancy text", "text styles" },
+        { "tool.cursor_right", "move cursor right", "cursor right" },
+        { "tool.cursor_left", "move cursor left", "cursor left" },
+        { "tool.cursor_up", "move cursor up", "cursor up" },
+        { "tool.cursor_down", "move cursor down", "cursor down" },
+        { "tool.cursor_home", "move cursor to start", "cursor home" },
+        { "tool.cursor_end", "move cursor to end", "cursor end" },
+        { "tool.notes", "quick notes", "notes" },
+        { "tool.vocabulary", "vocabulary" },
+        { "tool.image_search", "image search" },
+        { "tool.doc_scan", "document scanner" },
+        { "tool.qr_scan", "qr code scanner" },
+        { "tool.language", "language settings", "keyboard languages" },
+        { "tool.resize", "resize keyboard", "keyboard height" },
+        { "tool.unit_convert", "unit converter" },
+        { "tool.currency", "currency" },
+        { "tool.qr_gen", "qr code generator" },
+        { "tool.password_gen", "password" },
+        { "tool.typing_test", "typing speed test" },
+        { "tool.media_control", "music controls" },
+        { "tool.power_saving", "power saving mode" },
+        { "tool.cursor_word_right", "move cursor one word right", "cursor word right" },
+        { "tool.cursor_word_left", "move cursor one word left", "cursor word left" },
+        { "tool.page_up", "page up" },
+        { "tool.page_down", "page down" },
+        { "tool.select_all", "select all" },
+        { "tool.select_mode", "selection mode", "select mode" },
+        { "tool.persistent", "persistent clipboard", "pin clipboard" },
+        { "tool.select_line", "select line" },
+        { "tool.select_word", "select word" },
+        { "tool.location", "share location", "location" },
+        { "tool.recent_copies", "recent copies", "clipboard history" },
+        { "tool.text_repeat", "repeat text", "text repeat" },
+        { "tool.clock", "clock", "time" },
+        { "tool.leave_field", "leave field", "next field" },
+        { "tool.quick_note", "quick note" },
+        { "tool.read_back", "read aloud", "read back" },
+        { "tool.music_id", "identify music", "music identification" },
+        { "tool.todo", "to-do", "todo list" },
+        { "tool.speed_test", "speed test", "internet speed" },
+        { "tool.sticker", "stickers" },
+        { "tool.find_replace", "find and replace", "find replace" },
+        { "tool.home_assistant", "home assistant" },
+        { "tool.phonetic_english", "phonetic english" },
+        { "tool.kde_connect", "kde connect" },
+        { "tool.selection_actions", "selection actions" },
+        { "tool.statistics", "typing statistics", "statistics" },
+        { "tool.ai_reply", "ai reply", "smart reply" },
+        { "tool.emoji_mix", "emoji kitchen", "emoji mix" },
+        { "chrome.toolbox_search", "search toolbar", "toolbar search" },
+        { "chrome.panel_back", "back to keyboard", "panel back" },
+        { "chrome.power_saving", "power saving" },
+        { "chrome.search_close", "close search", "clear search" },
+        { "chrome.emoji_shortcut", "emoji shortcut" },
+        { "chrome.incognito", "incognito" },
+        { "chrome.hide_keys", "hide keys" },
+        { "chrome.show_keys", "show keys" }
+    };
     private static final LruCache<String, Bitmap> BITMAP_CACHE = new LruCache<String, Bitmap>(CACHE_KB) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
@@ -50,7 +149,24 @@ public final class KeyboardIconPackRuntime {
         collectPreferences(preferenceGroup, preferences);
         for (Object preference : preferences) {
             String key = GlideTrailPreferences.getKey(preference);
-            if (PREF_IMPORT.equals(key)) {
+            if (PREF_ENABLED.equals(key)) {
+                Context context = GlideTrailPreferences.getContext(preference);
+                Boolean enabled = GlideTrailPreferences.getPreferenceBoolean(preference);
+                if (context != null && enabled != null) {
+                    GlideTrailPreferences.savePrefBoolean(context, PREF_ENABLED, enabled);
+                }
+                GlideTrailPreferences.setPreferenceChangeListener(preference, (changed, value) -> {
+                    Context changedContext = GlideTrailPreferences.getContext(changed);
+                    if (changedContext != null && value instanceof Boolean) {
+                        GlideTrailPreferences.savePrefBoolean(
+                            changedContext,
+                            PREF_ENABLED,
+                            (Boolean) value
+                        );
+                    }
+                    return true;
+                });
+            } else if (PREF_IMPORT.equals(key)) {
                 GlideTrailPreferences.setPreferenceClickListener(preference, clickedPreference -> {
                     launchImporter(GlideTrailPreferences.getContext(clickedPreference));
                     return true;
@@ -75,20 +191,34 @@ public final class KeyboardIconPackRuntime {
 
     public static void applyIcon(View softKeyView, Object softKeyDef, int imageViewId) {
         if (softKeyView == null || softKeyDef == null) return;
+        logOnce("render-hook", "The Gboard key icon render hook is active.");
         Context context = softKeyView.getContext();
-        if (!isEnabled(context)) return;
+        if (!isEnabled(context)) {
+            logOnce("disabled", "Icon replacement is disabled in Gboard Settings.");
+            return;
+        }
         String slot = resolveSlot(softKeyView, softKeyDef);
-        if (slot == null) return;
+        if (slot == null) {
+            logOnce("unmapped:" + softKeyView.getClass().getName(),
+                "No supported icon slot matched a rendered Gboard key.");
+            return;
+        }
 
         File iconFile = new File(new File(new File(context.getFilesDir(), "morphe-wmicons"), "active"),
             slot + ".icon");
-        if (!iconFile.isFile()) return;
+        if (!iconFile.isFile()) {
+            logOnce("missing:" + slot, "The imported icon pack has no image for " + slot + ".");
+            return;
+        }
 
         String cacheKey = iconFile.getAbsolutePath();
         Bitmap bitmap = BITMAP_CACHE.get(cacheKey);
         if (bitmap == null || bitmap.isRecycled()) {
             bitmap = decodeIcon(iconFile);
-            if (bitmap == null) return;
+            if (bitmap == null) {
+                logOnce("decode:" + slot, "The imported image for " + slot + " could not be decoded.");
+                return;
+            }
             BITMAP_CACHE.put(cacheKey, bitmap);
         }
         View iconView = softKeyView.findViewById(imageViewId);
@@ -97,7 +227,15 @@ public final class KeyboardIconPackRuntime {
             image.setColorFilter((android.graphics.ColorFilter) null);
             clearImageTint(image);
             image.setImageBitmap(bitmap);
+            logOnce("applied:" + slot, "Applied an imported icon to " + slot + ".");
+        } else {
+            logOnce("view:" + softKeyView.getClass().getName(),
+                "Gboard's key icon ImageView was not found for a rendered key.");
         }
+    }
+
+    private static void logOnce(String key, String message) {
+        if (LOGGED_DIAGNOSTICS.add(key)) Log.i(TAG, message);
     }
 
     public static String importPack(Context context, java.io.InputStream input) throws IOException {
@@ -184,8 +322,6 @@ public final class KeyboardIconPackRuntime {
         }
         deleteTree(backup);
         BITMAP_CACHE.evictAll();
-        GlideTrailPreferences.savePrefBoolean(context, PREF_ENABLED, true);
-
         String packName = manifest.name == null || manifest.name.isEmpty() ? "WMKeyboard" : manifest.name;
         return "Imported " + packName + " (" + icons.size() + " icons).";
     }
@@ -442,14 +578,8 @@ public final class KeyboardIconPackRuntime {
 
     private static boolean isEnabled(Context context) {
         try {
-            SharedPreferences preferences =
-                android.preference.PreferenceManager.getDefaultSharedPreferences(context);
-            if (preferences != null && preferences.contains(PREF_ENABLED)) {
-                return preferences.getBoolean(PREF_ENABLED, false);
-            }
-            SharedPreferences deviceProtectedPreferences = GlideTrailPreferences.getPrefs(context);
-            return deviceProtectedPreferences != null &&
-                deviceProtectedPreferences.getBoolean(PREF_ENABLED, false);
+            SharedPreferences preferences = GlideTrailPreferences.getPrefs(context);
+            return preferences != null && preferences.getBoolean(PREF_ENABLED, false);
         } catch (RuntimeException exception) {
             Log.w(TAG, "Unable to read the keyboard-icon setting.", exception);
             return false;
@@ -461,6 +591,8 @@ public final class KeyboardIconPackRuntime {
         String text = ((view.getContentDescription() == null) ? "" : view.getContentDescription().toString())
             + " " + String.valueOf(softKeyDef);
         String lower = text.toLowerCase(Locale.ROOT);
+        String metadataSlot = namedSlot(lower);
+        if (metadataSlot != null) return metadataSlot;
         for (Integer keyCode : keyCodes) {
             String slot = keyCodeSlot(keyCode, lower);
             if (slot != null) return slot;
@@ -510,6 +642,17 @@ public final class KeyboardIconPackRuntime {
         if (containsAny(lower, "input method", "change keyboard")) return "key.input_method_picker";
         if (containsAny(lower, "globe", "language switch")) return "key.globe";
         if (containsAny(lower, "search")) return "key.enter_search";
+        return null;
+    }
+
+    private static String namedSlot(String text) {
+        Matcher matcher = SLOT_TOKEN.matcher(text);
+        if (matcher.find()) return matcher.group();
+        for (String[] aliases : NAMED_SLOT_ALIASES) {
+            for (int index = 1; index < aliases.length; index++) {
+                if (text.contains(aliases[index])) return aliases[0];
+            }
+        }
         return null;
     }
 

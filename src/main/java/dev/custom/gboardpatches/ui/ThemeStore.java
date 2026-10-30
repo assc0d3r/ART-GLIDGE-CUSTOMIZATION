@@ -65,7 +65,11 @@ final class ThemeStore {
             return load(context, id);
         } catch (IOException exception) {
             Log.w(TAG, "Falling back to the default keyboard theme.", exception);
-            setActive(context, DEFAULT_THEME);
+            try {
+                setActive(context, DEFAULT_THEME);
+            } catch (IOException activationException) {
+                Log.w(TAG, "Unable to reset the native Gboard theme.", activationException);
+            }
             return defaultTheme();
         }
     }
@@ -74,8 +78,19 @@ final class ThemeStore {
         return preferences(context).getString(PREF_ACTIVE_THEME, DEFAULT_THEME);
     }
 
-    static void setActive(Context context, String id) {
-        preferences(context).edit().putString(PREF_ACTIVE_THEME, id).apply();
+    static void setActive(Context context, String id) throws IOException {
+        if (id == null || !isSafeId(id) && !DEFAULT_THEME.equals(id)) {
+            throw new IOException("The selected theme could not be found.");
+        }
+        Map<String, Object> theme = DEFAULT_THEME.equals(id) ? defaultTheme() : load(context, id);
+        setActive(context, id, theme);
+    }
+
+    static void setActive(Context context, String id, Map<String, Object> look) throws IOException {
+        if (id == null || !isSafeId(id) && !DEFAULT_THEME.equals(id)) {
+            throw new IOException("The selected theme could not be found.");
+        }
+        GboardNativeTheme.activate(context, id, look);
         KeyboardThemeRuntime.invalidate();
     }
 
@@ -122,6 +137,7 @@ final class ThemeStore {
         File file = themeFile(context, id);
         if (file.exists() && !file.delete()) throw new IOException("Gboard could not delete the theme.");
         if (id.equals(activeId(context))) setActive(context, DEFAULT_THEME);
+        GboardNativeTheme.delete(context, id);
     }
 
     static Map<String, Object> create(Context context, String presetName) {

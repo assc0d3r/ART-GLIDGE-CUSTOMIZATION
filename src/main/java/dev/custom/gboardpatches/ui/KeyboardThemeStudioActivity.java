@@ -113,7 +113,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
         TextView heading = text("Gboard Theme Studio", 24);
         content.addView(heading);
         content.addView(text(
-            "Create looks, tune key colors and shapes, and import or export WMKeyboard theme files.",
+            "Create themes and apply colors through Gboard's native ZIP-theme system. Native activation currently requires Gboard 18.5.4.",
             14
         ));
 
@@ -126,10 +126,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
         content.addView(importButton);
 
         Button useDefault = button("Use Default (system)");
-        useDefault.setOnClickListener(view -> {
-            ThemeStore.setActive(this, "builtin_default");
-            showManager();
-        });
+        useDefault.setOnClickListener(view -> activateTheme("builtin_default"));
         content.addView(useDefault);
 
         TextView presetsHeading = text("Start from a preset", 18);
@@ -152,10 +149,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
             card.addView(title);
             LinearLayout actions = row();
             Button apply = smallButton("Use");
-            apply.setOnClickListener(view -> {
-                ThemeStore.setActive(this, id);
-                showManager();
-            });
+            apply.setOnClickListener(view -> activateTheme(id));
             Button edit = smallButton("Edit");
             edit.setOnClickListener(view -> openEditor(id));
             Button export = smallButton("Export");
@@ -297,9 +291,13 @@ public final class KeyboardThemeStudioActivity extends Activity {
 
         Button save = button("Apply theme and finish");
         save.setOnClickListener(view -> {
-            persistTheme();
-            ThemeStore.setActive(this, ThemeDocument.string(theme, "id", ""));
-            showManager();
+            if (!persistTheme()) return;
+            try {
+                ThemeStore.setActive(this, ThemeDocument.string(theme, "id", ""), editedLook);
+                showManager();
+            } catch (IOException exception) {
+                showMessage(exception.getMessage());
+            }
         });
         content.addView(save);
         setContentView(scroll);
@@ -368,11 +366,11 @@ public final class KeyboardThemeStudioActivity extends Activity {
             showEditor();
         } catch (IOException exception) {
             showMessage(exception.getMessage());
+            showManager();
         }
     }
 
     private void openEditor(String id) {
-        ThemeStore.setActive(this, id);
         Intent intent = new Intent(this, KeyboardThemeStudioActivity.class);
         intent.putExtra(EXTRA_ACTION, "edit");
         intent.putExtra("theme_id", id);
@@ -465,12 +463,20 @@ public final class KeyboardThemeStudioActivity extends Activity {
         parent.addView(chip);
     }
 
-    private void persistTheme() {
+    private boolean persistTheme() {
         try {
             ThemeStore.save(this, theme);
-            if (ThemeDocument.string(theme, "id", "").equals(ThemeStore.activeId(this))) {
-                ThemeStore.setActive(this, ThemeStore.activeId(this));
-            }
+            return true;
+        } catch (IOException exception) {
+            showMessage(exception.getMessage());
+            return false;
+        }
+    }
+
+    private void activateTheme(String id) {
+        try {
+            ThemeStore.setActive(this, id);
+            showManager();
         } catch (IOException exception) {
             showMessage(exception.getMessage());
         }
@@ -529,6 +535,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
             openEditor(ThemeDocument.string(copy, "id", ""));
         } catch (IOException exception) {
             showMessage(exception.getMessage());
+            showManager();
         }
     }
 

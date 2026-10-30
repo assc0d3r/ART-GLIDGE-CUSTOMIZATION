@@ -65,9 +65,10 @@ jobs:
           - Import WMKeyboard `.wmicons`/ZIP packs and apply icons to supported Gboard keys and
             toolbar buttons using key metadata or accessibility labels. The enabled state follows
             Gboard's persistent switch. Slots without a known Gboard match are left unchanged.
-          - Use Gboard Theme Studio to edit colors, key shapes, corner radius, and theme looks,
-            with WMKeyboard theme JSON import/export. This is an incremental first layer; advanced
-            image, texture, animation, and toolbar/popup styling are not yet implemented.
+          - Use Gboard Theme Studio to create WMKeyboard-compatible JSON themes and activate
+            Gboard-native ZIP themes. Color and basic corner-radius conversion currently targets
+            Gboard 18.5.4; advanced image, texture, animation, and toolbar/popup styling are not
+            represented.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.
           - Fix preference-listener proxy return types that could crash Gboard Settings when
             toggling switches.

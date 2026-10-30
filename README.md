@@ -10,7 +10,8 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
   matching icons for supported Gboard keys and toolbar buttons. The runtime honors Gboard's
   persistent switch state and uses key metadata and accessibility labels to find supported slots.
 - **Gboard Theme Studio:** create, edit, duplicate, import, and export themes; edit key/board
-  colors, key shapes, corner radius, and theme-family looks.
+  colors, key shapes, corner radius, and theme-family looks. Selected themes are converted to
+  Gboard-native ZIP themes instead of drawing over keyboard views.
 
 All patches are exposed as experimental, version-unpinned Gboard targets. They still rely on
 Gboard's internal classes and settings resources; versions that change those structures may not
@@ -23,17 +24,18 @@ English and Hinglish), and does not rotate between language models.
 
 The icon-pack importer accepts `pack.json` version 1 with PNG, WebP, JPEG, or GIF icons. It validates
 the archive and image dimensions before storing icons in Gboard's private app storage. SVG icons and
-slots that cannot be mapped to Gboard metadata are not applied. The icon patch is also experimental:
-Gboard changes its internal key rendering and settings structures between releases, so an unpinned
-target does not guarantee every version will patch or expose every icon.
+slots that cannot be mapped to Gboard metadata are not applied. The enable switch is mirrored from
+Gboard's preference listener so its runtime state stays aligned with Gboard Settings. The icon patch
+is also experimental: Gboard changes its internal key rendering and settings structures between
+releases, so an unpinned target does not guarantee every version will patch or expose every icon.
 
-Theme Studio is an incremental first layer, not full WMKeyboard editor parity. It supports color
-editing, a selection of key shapes, corner radius, key solid/linear/radial/sweep gradients, board
-solid/linear-gradient fills, up to 13 looks, undo/redo, and WMKeyboard `.wmtheme.json` import/export
-while preserving unrecognized JSON fields. Imported colors may be hex strings or numbers. The
-current renderer does not yet implement wallpaper
-color matching, background images, textures, animation, toolbar/popup/panel styling, per-key styles,
-or stickers. The default/system selection leaves Gboard's stock rendering untouched.
+Theme Studio imports and exports WMKeyboard `.wmtheme.json` files while preserving unrecognized
+fields, and supports up to 13 looks and undo/redo. Applying a theme converts its board/key colors
+and basic corner radius to Gboard's native CSS theme format; gradients, custom shapes, wallpaper
+matching, images, textures, animation, toolbar/popup/panel styling, per-key styles, and stickers
+are not represented by this native conversion. Native archive validation currently uses the
+Gboard 18.5.4 validator; other Gboard versions may not expose that validator and will receive an
+explicit activation error. The default/system selection removes the custom native theme setting.
 
 ## Use in Morphe
 
@@ -49,5 +51,5 @@ or stickers. The default/system selection leaves Gboard's stock rendering untouc
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.10.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.11.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

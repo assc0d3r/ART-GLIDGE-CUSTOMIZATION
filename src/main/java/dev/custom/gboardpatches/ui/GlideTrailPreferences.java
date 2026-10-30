@@ -149,6 +149,19 @@ public class GlideTrailPreferences {
         return null;
     }
 
+    public static Boolean getPreferenceBoolean(Object preference) {
+        if (preference == null) return null;
+        try {
+            Method method = findMethod(preference.getClass(), "isChecked");
+            if (method == null) return null;
+            Object value = method.invoke(preference);
+            return value instanceof Boolean ? (Boolean) value : null;
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            Log.w(TAG, "Unable to read a Gboard customization switch.", exception);
+            return null;
+        }
+    }
+
     public static Context getContext(Object preference) {
         if (preference == null) return null;
         // Prefer the framework accessor before relying on an obfuscated implementation detail.
