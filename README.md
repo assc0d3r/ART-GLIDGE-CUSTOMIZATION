@@ -10,8 +10,11 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
   matching icons for supported Gboard keys and toolbar buttons. The runtime honors Gboard's
   persistent switch state and uses key metadata and accessibility labels to find supported slots.
 - **Gboard Theme Studio:** create, edit, duplicate, import, and export themes; edit key/board
-  colors, key shapes, corner radius, and theme-family looks. Selected themes are converted to
-  Gboard-native ZIP themes instead of drawing over keyboard views.
+  colors, key shapes, corner radius, and theme-family looks. The editor also offers image and
+  texture backgrounds, wallpaper-following colors, animation, toolbar/popup styling, per-key
+  overrides, sticker overlays, and an icon-pack preview. These extended styles are applied by
+  runtime hooks in the patched keyboard; they are not all represented in Gboard's native ZIP
+  theme format.
 
 All patches are exposed as experimental, version-unpinned Gboard targets. They still rely on
 Gboard's internal classes and settings resources; versions that change those structures may not
@@ -30,12 +33,15 @@ is also experimental: Gboard changes its internal key rendering and settings str
 releases, so an unpinned target does not guarantee every version will patch or expose every icon.
 
 Theme Studio imports and exports WMKeyboard `.wmtheme.json` files while preserving unrecognized
-fields, and supports up to 13 looks and undo/redo. Applying a theme converts its board/key colors
-and basic corner radius to Gboard's native CSS theme format; gradients, custom shapes, wallpaper
-matching, images, textures, animation, toolbar/popup/panel styling, per-key styles, and stickers
-are not represented by this native conversion. Native archive validation currently uses the
-Gboard 18.5.4 validator; other Gboard versions may not expose that validator and will receive an
-explicit activation error. The default/system selection removes the custom native theme setting.
+fields, and supports up to 13 looks and undo/redo. Applying a theme also creates a Gboard-native
+CSS theme for the base colors and key shape; the runtime hook applies the additional editor styles
+to Gboard views. Imported icon packs remain in the separate Keyboard Icon Packs setting and are
+not embedded in theme exports. The runtime depends on Gboard's internal `SoftKeyView` render method
+and view-tree naming, so extended styling is experimental, may not cover every surface, and is not
+guaranteed to work with every Gboard version. Native archive validation currently uses the Gboard
+18.5.4 validator; other Gboard versions may not expose that validator and will receive an explicit
+activation error. The default/system selection restores captured view styling and removes the
+custom native theme setting.
 
 ## Use in Morphe
 
@@ -51,5 +57,5 @@ explicit activation error. The default/system selection removes the custom nativ
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.12.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.13.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

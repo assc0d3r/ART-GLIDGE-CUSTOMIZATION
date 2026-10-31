@@ -65,10 +65,12 @@ jobs:
           - Import WMKeyboard `.wmicons`/ZIP packs and apply icons to supported Gboard keys and
             toolbar buttons using key metadata or accessibility labels. The enabled state follows
             Gboard's persistent switch. Slots without a known Gboard match are left unchanged.
-          - Use Gboard Theme Studio to create WMKeyboard-compatible JSON themes and activate
-            Gboard-native ZIP themes. Color and basic corner-radius conversion currently targets
-            Gboard 18.5.4; advanced image, texture, animation, and toolbar/popup styling are not
-            represented.
+          - Use Gboard Theme Studio to create/import/export WMKeyboard-compatible JSON themes.
+            Experimental runtime styling adds background images and textures, wallpaper-derived
+            colors, animation, toolbar/popup styling, per-key overrides, and sticker overlays.
+            These hooks depend on Gboard internals and are not guaranteed across versions.
+          - Build and activate a Gboard-native ZIP theme for base colors and key shape; imported
+            icon packs remain managed separately and are not embedded into theme exports.
           - Fix native stylesheet registration so generated theme colors are loaded by Gboard, and
             enable imported icon packs while improving icon visibility and Logcat diagnostics.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.

@@ -89,6 +89,19 @@ final class ThemeDocument {
         return fallback;
     }
 
+    static double decimal(Map<String, Object> object, String key, double fallback) {
+        Object value = object.get(key);
+        if (value instanceof Number) return ((Number) value).doubleValue();
+        if (value instanceof String) {
+            try {
+                return Double.parseDouble(((String) value).trim());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
     static int color(Map<String, Object> object, String key, int fallback) {
         Object value = object.get(key);
         if (value instanceof Number) return (int) ((Number) value).longValue();

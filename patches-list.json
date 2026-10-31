@@ -1,5 +1,5 @@
 {
-  "version": "1.0.12",
+  "version": "1.0.13",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -24,7 +24,7 @@
     },
     {
       "name": "Gboard Theme Studio",
-      "description": "Generate Gboard-native ZIP themes with the required variables.css and MD2 stylesheet; activation currently targets Gboard 18.5.4.",
+      "description": "Create WMKeyboard-compatible themes with experimental Gboard runtime styling for backgrounds, key overrides, stickers, and surfaces.",
       "use": true,
       "dependencies": [],
       "options": []

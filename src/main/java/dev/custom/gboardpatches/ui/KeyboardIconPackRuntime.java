@@ -241,6 +241,37 @@ public final class KeyboardIconPackRuntime {
         }
     }
 
+    public static int activeIconCount(Context context) {
+        File directory = new File(new File(context.getFilesDir(), "morphe-wmicons"), "active");
+        File[] files = directory.listFiles((parent, name) -> name.endsWith(".icon"));
+        return files == null ? 0 : files.length;
+    }
+
+    static List<String> activeIconSlots(Context context) {
+        File directory = new File(new File(context.getFilesDir(), "morphe-wmicons"), "active");
+        File[] files = directory.listFiles((parent, name) -> name.endsWith(".icon"));
+        List<String> slots = new ArrayList<>();
+        if (files == null) return slots;
+        java.util.Arrays.sort(files, (left, right) -> left.getName().compareToIgnoreCase(right.getName()));
+        for (File file : files) slots.add(file.getName().substring(0, file.getName().length() - 5));
+        return slots;
+    }
+
+    static Bitmap previewIcon(Context context, String slot) {
+        File iconFile = new File(
+            new File(new File(context.getFilesDir(), "morphe-wmicons"), "active"),
+            slot + ".icon"
+        );
+        if (!iconFile.isFile()) return null;
+        String cacheKey = iconFile.getAbsolutePath();
+        Bitmap bitmap = BITMAP_CACHE.get(cacheKey);
+        if (bitmap == null || bitmap.isRecycled()) {
+            bitmap = decodeIcon(iconFile);
+            if (bitmap != null) BITMAP_CACHE.put(cacheKey, bitmap);
+        }
+        return bitmap;
+    }
+
     private static void logOnce(String key, String message) {
         if (LOGGED_DIAGNOSTICS.add(key)) Log.i(TAG, message);
     }
@@ -595,7 +626,7 @@ public final class KeyboardIconPackRuntime {
         }
     }
 
-    private static String resolveSlot(View view, Object softKeyDef) {
+    public static String resolveSlot(View view, Object softKeyDef) {
         List<Integer> keyCodes = findKeyCodes(softKeyDef);
         String text = ((view.getContentDescription() == null) ? "" : view.getContentDescription().toString())
             + " " + String.valueOf(softKeyDef);
@@ -605,6 +636,16 @@ public final class KeyboardIconPackRuntime {
         for (Integer keyCode : keyCodes) {
             String slot = keyCodeSlot(keyCode, lower);
             if (slot != null) return slot;
+        }
+        String describedKey = lower.trim();
+        if (describedKey.length() == 1) {
+            char character = describedKey.charAt(0);
+            if (character >= 'a' && character <= 'z') {
+                return "key.letter_" + character;
+            }
+            if (character >= '0' && character <= '9') {
+                return "key.number_" + character;
+            }
         }
 
         if (containsAny(lower, "clipboard search", "search clipboard")) return "tool.clipboard_search";
@@ -666,6 +707,12 @@ public final class KeyboardIconPackRuntime {
     }
 
     private static String keyCodeSlot(int keyCode, String description) {
+        if (keyCode >= 29 && keyCode <= 54) {
+            return "key.letter_" + (char) ('a' + keyCode - 29);
+        }
+        if (keyCode >= 7 && keyCode <= 16) {
+            return "key.number_" + (keyCode - 7);
+        }
         switch (keyCode) {
             case 19: return "key.arrow_up";
             case 20: return "key.arrow_down";

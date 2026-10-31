@@ -10,6 +10,9 @@ import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.graphics.SweepGradient;
 import android.graphics.LinearGradient;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
+import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
 
 final class ThemeKeyDrawable extends Drawable {
@@ -27,6 +30,11 @@ final class ThemeKeyDrawable extends Drawable {
     private final int[] gradientColors;
     private final String gradientType;
     private final float gradientAngle;
+    private final Bitmap texture;
+    private final String textureFit;
+    private final int textureOpacity;
+    private final BitmapShader textureShader;
+    private final Matrix textureMatrix = new Matrix();
     private boolean pressed;
     private int alpha = 255;
     private ColorFilter colorFilter;
@@ -40,7 +48,10 @@ final class ThemeKeyDrawable extends Drawable {
         String shape,
         int[] gradientColors,
         String gradientType,
-        float gradientAngle
+        float gradientAngle,
+        Bitmap texture,
+        String textureFit,
+        int textureOpacity
     ) {
         this.normalColor = normalColor;
         this.pressedColor = pressedColor;
@@ -51,6 +62,14 @@ final class ThemeKeyDrawable extends Drawable {
         this.gradientColors = gradientColors == null ? new int[0] : gradientColors.clone();
         this.gradientType = gradientType;
         this.gradientAngle = gradientAngle;
+        this.texture = texture;
+        this.textureFit = textureFit;
+        this.textureOpacity = Math.max(0, Math.min(100, textureOpacity));
+        this.textureShader = texture == null ? null : new BitmapShader(
+            texture,
+            "TILE".equalsIgnoreCase(textureFit) ? Shader.TileMode.REPEAT : Shader.TileMode.CLAMP,
+            "TILE".equalsIgnoreCase(textureFit) ? Shader.TileMode.REPEAT : Shader.TileMode.CLAMP
+        );
         fillPaint.setStyle(Paint.Style.FILL);
         borderPaint.setStyle(Paint.Style.STROKE);
         borderPaint.setStrokeWidth(borderWidth);
@@ -60,6 +79,7 @@ final class ThemeKeyDrawable extends Drawable {
     public void draw(Canvas canvas) {
         android.graphics.Rect bounds = getBounds();
         if (bounds.isEmpty()) return;
+        if ("NONE".equalsIgnoreCase(shape) && !pressed) return;
         float halfBorder = borderWidth / 2f;
         RectF rect = new RectF(bounds.left + halfBorder, bounds.top + halfBorder,
             bounds.right - halfBorder, bounds.bottom - halfBorder);
@@ -71,6 +91,33 @@ final class ThemeKeyDrawable extends Drawable {
         fillPaint.setShader(keyGradient);
         canvas.drawPath(path, fillPaint);
         fillPaint.setShader(null);
+        if (textureShader != null && !texture.isRecycled() && textureOpacity > 0) {
+            if (!"TILE".equalsIgnoreCase(textureFit)) {
+                textureMatrix.reset();
+                float scaleX = rect.width() / texture.getWidth();
+                float scaleY = rect.height() / texture.getHeight();
+                if ("STRETCH".equalsIgnoreCase(textureFit)) {
+                    textureMatrix.setScale(scaleX, scaleY);
+                    textureMatrix.postTranslate(rect.left, rect.top);
+                } else {
+                    float scale = Math.max(scaleX, scaleY);
+                    textureMatrix.setScale(scale, scale);
+                    textureMatrix.postTranslate(
+                        rect.centerX() - texture.getWidth() * scale / 2f,
+                        rect.centerY() - texture.getHeight() * scale / 2f
+                    );
+                }
+            } else {
+                textureMatrix.setTranslate(rect.left, rect.top);
+            }
+            textureShader.setLocalMatrix(textureMatrix);
+            fillPaint.setColor(android.graphics.Color.WHITE);
+            fillPaint.setAlpha(Math.round(alpha * textureOpacity / 100f));
+            fillPaint.setColorFilter(colorFilter);
+            fillPaint.setShader(textureShader);
+            canvas.drawPath(path, fillPaint);
+            fillPaint.setShader(null);
+        }
         if (borderWidth > 0f) {
             borderPaint.setColor(borderColor);
             borderPaint.setAlpha(alpha);
@@ -90,7 +137,7 @@ final class ThemeKeyDrawable extends Drawable {
 
     @Override
     public boolean isStateful() {
-        return pressedColor != normalColor;
+        return pressedColor != normalColor || "NONE".equalsIgnoreCase(shape);
     }
 
     @Override
@@ -118,8 +165,10 @@ final class ThemeKeyDrawable extends Drawable {
         float shortSide = Math.min(width, height);
         float corner = Math.max(0f, Math.min(radius, shortSide / 2f));
 
-        if ("SHARP".equals(kind) || "SQUARE".equals(kind) || "NONE".equals(kind)) {
+        if ("SHARP".equals(kind) || "SQUARE".equals(kind)) {
             path.addRect(rect, Path.Direction.CW);
+        } else if ("NONE".equals(kind)) {
+            path.addRoundRect(rect, corner, corner, Path.Direction.CW);
         } else if ("PILL".equals(kind)) {
             path.addRoundRect(rect, shortSide / 2f, shortSide / 2f, Path.Direction.CW);
         } else if ("CIRCLE".equals(kind) && width <= height * 1.2f) {

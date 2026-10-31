@@ -295,7 +295,9 @@ final class ThemeStore {
         String[] keys = {
             "boardBackground", "keyBackground", "keyText", "modifierKeyBackground",
             "modifierKeyText", "enterKeyBackground", "enterKeyText", "pressedKeyBackground",
-            "accent", "keyBorderColor"
+            "accent", "keyBorderColor", "toolbarBackground", "toolbarToolBackground",
+            "toolbarToolIcon", "suggestionStripBackground", "suggestionText",
+            "popupBackground", "popupText", "popupOutline"
         };
         for (String key : keys) {
             Object value = theme.get(key);

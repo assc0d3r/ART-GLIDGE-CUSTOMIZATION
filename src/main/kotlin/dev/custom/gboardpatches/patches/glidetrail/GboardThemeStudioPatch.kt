@@ -4,6 +4,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.Compatibility
 import app.morphe.patcher.patch.bytecodePatch
+import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
@@ -11,10 +12,14 @@ private const val THEME_RUNTIME =
     "Ldev/custom/gboardpatches/ui/KeyboardThemeRuntime;"
 private const val THEME_PREFERENCE_GROUP =
     "Landroidx/preference/PreferenceGroup;"
+private const val SOFT_KEY_VIEW =
+    "Lcom/google/android/libraries/inputmethod/widgets/SoftKeyView;"
+private const val SOFT_KEY_DEF =
+    "Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;"
 
 val gboardThemeStudioPatch = bytecodePatch(
     name = "Gboard Theme Studio",
-    description = "Builds and activates Gboard-native ZIP themes from Theme Studio color and shape settings.",
+    description = "Adds Theme Studio and experimental runtime styling for advanced Gboard themes.",
     default = true
 ) {
     compatibleWith(
@@ -67,5 +72,29 @@ val gboardThemeStudioPatch = bytecodePatch(
             }
         }
         if (preferenceHooks == 0) error("Gboard preference-group initialization method not found")
+
+        val softKeyView = mutableClassDefByOrNull(SOFT_KEY_VIEW)
+            ?: error("Gboard SoftKeyView class not found")
+        val renderKeys = softKeyView.methods.firstOrNull {
+            it.name == "A" &&
+                it.parameterTypes == listOf(SOFT_KEY_DEF) &&
+                it.returnType == "V"
+        } ?: error("Gboard SoftKeyView render method not found")
+        val keyReturns = renderKeys.implementation?.instructions
+            ?.withIndex()
+            ?.filter { it.value.opcode == Opcode.RETURN_VOID }
+            ?.map { it.index }
+            ?: error("Gboard SoftKeyView render method has no implementation")
+        if (keyReturns.isEmpty()) error("Gboard SoftKeyView render method has no return")
+        keyReturns.asReversed().forEach { returnIndex ->
+            renderKeys.addInstructions(
+                returnIndex,
+                """
+                move-object/from16 v0, p0
+                move-object/from16 v1, p1
+                invoke-static {v0, v1}, $THEME_RUNTIME->applyKey(Landroid/view/View;Ljava/lang/Object;)V
+                """.trimIndent()
+            )
+        }
     }
 }
