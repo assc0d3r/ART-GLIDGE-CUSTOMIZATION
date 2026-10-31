@@ -69,6 +69,8 @@ jobs:
             Gboard-native ZIP themes. Color and basic corner-radius conversion currently targets
             Gboard 18.5.4; advanced image, texture, animation, and toolbar/popup styling are not
             represented.
+          - Fix native stylesheet registration so generated theme colors are loaded by Gboard, and
+            enable imported icon packs while improving icon visibility and Logcat diagnostics.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.
           - Fix preference-listener proxy return types that could crash Gboard Settings when
             toggling switches.

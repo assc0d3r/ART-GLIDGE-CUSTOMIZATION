@@ -1,5 +1,5 @@
 {
-  "version": "1.0.11",
+  "version": "1.0.12",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -17,14 +17,14 @@
     },
     {
       "name": "Keyboard Icon Packs",
-      "description": "Import WMKeyboard icon packs and apply matching icons using key metadata or accessibility labels; the enable switch follows Gboard's stored state.",
+      "description": "Import WMKeyboard icon packs and apply matching icons using key metadata or accessibility labels; successful imports enable supported key replacements.",
       "use": true,
       "dependencies": [],
       "options": []
     },
     {
       "name": "Gboard Theme Studio",
-      "description": "Convert Theme Studio colors and corner radius into Gboard-native ZIP themes; native activation currently targets Gboard 18.5.4.",
+      "description": "Generate Gboard-native ZIP themes with the required variables.css and MD2 stylesheet; activation currently targets Gboard 18.5.4.",
       "use": true,
       "dependencies": [],
       "options": []

@@ -61,7 +61,7 @@ internal fun applyKeyboardIconPackSettings(document: Document) {
             setAttributeNS(
                 KEYBOARD_ICON_ANDROID_NS,
                 "android:summary",
-                "Replace matching Gboard key and toolbar icons from the imported pack",
+                "Automatically enabled after importing; replaces supported matching Gboard icons",
             )
             setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:key", PREF_KEY_KEYBOARD_ICONS_ENABLED)
             setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:defaultValue", "false")
@@ -74,7 +74,7 @@ internal fun applyKeyboardIconPackSettings(document: Document) {
             setAttributeNS(
                 KEYBOARD_ICON_ANDROID_NS,
                 "android:summary",
-                "Choose a .wmicons or ZIP file. Icons without a matching Gboard key or button are ignored.",
+                "Choose a .wmicons or ZIP file. Importing enables replacement for supported Gboard icons.",
             )
             setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:key", PREF_KEY_KEYBOARD_ICON_PACK_IMPORT)
         }

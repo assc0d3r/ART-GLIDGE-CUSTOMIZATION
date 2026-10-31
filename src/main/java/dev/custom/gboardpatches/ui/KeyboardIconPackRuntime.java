@@ -199,8 +199,14 @@ public final class KeyboardIconPackRuntime {
         }
         String slot = resolveSlot(softKeyView, softKeyDef);
         if (slot == null) {
-            logOnce("unmapped:" + softKeyView.getClass().getName(),
-                "No supported icon slot matched a rendered Gboard key.");
+            String description = softKeyView.getContentDescription() == null
+                ? ""
+                : softKeyView.getContentDescription().toString();
+            logOnce(
+                "unmapped:" + softKeyView.getClass().getName() + ":" + description,
+                "No icon slot matched Gboard key; description=" + description
+                    + ", keyCodes=" + findKeyCodes(softKeyDef)
+            );
             return;
         }
 
@@ -227,6 +233,7 @@ public final class KeyboardIconPackRuntime {
             image.setColorFilter((android.graphics.ColorFilter) null);
             clearImageTint(image);
             image.setImageBitmap(bitmap);
+            image.setVisibility(View.VISIBLE);
             logOnce("applied:" + slot, "Applied an imported icon to " + slot + ".");
         } else {
             logOnce("view:" + softKeyView.getClass().getName(),
@@ -322,8 +329,10 @@ public final class KeyboardIconPackRuntime {
         }
         deleteTree(backup);
         BITMAP_CACHE.evictAll();
+        GlideTrailPreferences.savePrefBoolean(context, PREF_ENABLED, true);
+
         String packName = manifest.name == null || manifest.name.isEmpty() ? "WMKeyboard" : manifest.name;
-        return "Imported " + packName + " (" + icons.size() + " icons).";
+        return "Imported " + packName + " (" + icons.size() + " icons) and enabled supported keys.";
     }
 
     private static PackManifest parseManifest(String json) throws IOException {

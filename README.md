@@ -43,13 +43,13 @@ explicit activation error. The default/system selection removes the custom nativ
    `https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION`
 2. Select Gboard in the Patcher and enable the desired customization patch.
 3. Apply the patch and install the generated APK.
-4. Configure the relevant option in Gboard Settings. For icon packs, open **Keyboard Icon Packs**,
-   import the `.wmicons`/ZIP file, and enable **Use imported keyboard icons**.
+4. Configure the relevant option in Gboard Settings. For icon packs, open **Keyboard Icon Packs**
+   and import the `.wmicons`/ZIP file; a successful import enables replacement for supported keys.
 
 ## Build
 
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.11.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.12.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

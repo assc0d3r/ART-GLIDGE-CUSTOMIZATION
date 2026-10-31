@@ -23,6 +23,7 @@ final class GboardNativeTheme {
     private static final String TAG = "GboardThemeStudio";
     private static final String THEME_PREFERENCE = "additional_keyboard_theme";
     private static final String BORDER_PREFERENCE = "enable_key_border";
+    private static final String VARIABLES_SHEET = "variables.css";
     private static final String STYLE_SHEET = "style_sheet_md2.css";
 
     private GboardNativeTheme() {}
@@ -153,6 +154,7 @@ final class GboardNativeTheme {
         metadata.put("is_redesign_theme", Boolean.TRUE);
         metadata.put("prefer_key_border", Boolean.FALSE);
         List<Object> styleSheets = new ArrayList<>();
+        styleSheets.add(VARIABLES_SHEET);
         styleSheets.add(STYLE_SHEET);
         metadata.put("style_sheets", styleSheets);
 
@@ -161,7 +163,7 @@ final class GboardNativeTheme {
         String themeCss = stylesheet(theme);
         try (ZipOutputStream output = new ZipOutputStream(new FileOutputStream(archive))) {
             addEntry(output, "metadata.json", metadataJson);
-            addEntry(output, "style_sheet_variables.css", variablesCss);
+            addEntry(output, VARIABLES_SHEET, variablesCss);
             addEntry(output, "style_sheet_md2.css", themeCss);
         } catch (IOException exception) {
             archive.delete();
@@ -193,7 +195,7 @@ final class GboardNativeTheme {
         int radius = (int) ThemeDocument.number(theme, "keyCornerRadiusDp", 6);
         if ("SHARP".equalsIgnoreCase(shape)) radius = 0;
         if ("PILL".equalsIgnoreCase(shape) || "CIRCLE".equalsIgnoreCase(shape)) radius = 999;
-        String cornerRadius = Math.max(0, Math.min(999, radius)) + "dp";
+        String cornerRadius = Integer.toString(Math.max(0, Math.min(999, radius)));
         return ".keyboard-body-area { background_color: @color_set_a1; }\n"
             + ".keyboard-base-area, .keyboard-header-area { background_color: @color_set_a1; }\n"
             + ".keytop, .keytop.dark, .keytop.for-numpad-big-panel { "
