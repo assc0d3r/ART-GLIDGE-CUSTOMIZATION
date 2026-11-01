@@ -1,5 +1,5 @@
 {
-  "version": "1.0.14",
+  "version": "1.0.15",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -25,6 +25,13 @@
     {
       "name": "Gboard Theme Studio",
       "description": "Create WMKeyboard-compatible themes, render imported icons directly from Theme Studio, and apply experimental runtime styling for backgrounds, per-key overrides, stickers, and surfaces.",
+      "use": true,
+      "dependencies": [],
+      "options": []
+    },
+    {
+      "name": "AMOLED Gboard Settings",
+      "description": "Use a pure-black background with readable text and controls throughout Gboard preference screens, including settings added by other patches.",
       "use": true,
       "dependencies": [],
       "options": []

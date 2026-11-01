@@ -71,6 +71,9 @@ jobs:
             Experimental runtime styling adds background images and textures, wallpaper-derived
             colors, animation, toolbar/popup styling, per-key overrides, and sticker overlays.
             These hooks depend on Gboard internals and are not guaranteed across versions.
+          - Apply a pure-black AMOLED style to AndroidX preference rows across Gboard settings,
+            including settings introduced by other patches. Custom screens that do not use
+            AndroidX Preference rows are not covered.
           - Build and activate a Gboard-native ZIP theme for base colors and key shape; imported
             icon packs remain managed separately and are not embedded into theme exports.
           - Fix native stylesheet registration so generated theme colors are loaded by Gboard, and

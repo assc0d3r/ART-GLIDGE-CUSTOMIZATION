@@ -15,10 +15,16 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
   overrides, sticker overlays, and an icon-pack preview. These extended styles are applied by
   runtime hooks in the patched keyboard; they are not all represented in Gboard's native ZIP
   theme format.
+- **AMOLED Gboard Settings:** apply black backgrounds and legible text/control colors to
+  AndroidX preference rows. Because the hook targets the shared preference binder, settings
+  added by other patches are styled automatically when Gboard displays them.
 
 All patches are exposed as experimental, version-unpinned Gboard targets. They still rely on
 Gboard's internal classes and settings resources; versions that change those structures may not
 be patchable. Version-unpinned does not guarantee compatibility with every Gboard release.
+AMOLED styling covers AndroidX preference screens; custom settings activities, dialogs, and
+non-preference views are outside this shared row-binding hook, and future Gboard versions may
+change the AndroidX class or binding method.
 
 The multilingual option is a best-effort heuristic, not language detection: it preserves Gboard's
 first candidate and promotes the first candidate with a different writing script. It affects both
@@ -57,5 +63,5 @@ custom native theme setting.
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.14.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.15.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.
