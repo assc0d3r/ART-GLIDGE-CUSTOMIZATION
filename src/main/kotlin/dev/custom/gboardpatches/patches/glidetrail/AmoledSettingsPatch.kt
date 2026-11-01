@@ -34,7 +34,14 @@ val amoledSettingsPatch = bytecodePatch(
             it.name == "onBindViewHolder" &&
                 it.parameterTypes == listOf(PREFERENCE_VIEW_HOLDER) &&
                 it.returnType == "V"
-        } ?: error("AndroidX Preference row-binding method not found in Gboard.")
+        } ?: preferenceClass.methods.firstOrNull {
+            it.parameterTypes.size == 1 &&
+                it.parameterTypes[0].endsWith("/PreferenceViewHolder;") &&
+                it.returnType == "V"
+        } ?: error(
+            "AndroidX Preference row-binding method not found in Gboard. " +
+                "The installed Preference implementation may be incompatible."
+        )
         val returnIndexes = bindMethod.implementation?.instructions
             ?.withIndex()
             ?.filter { it.value.opcode == Opcode.RETURN_VOID }
