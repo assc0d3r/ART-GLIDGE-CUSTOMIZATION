@@ -1,5 +1,5 @@
 {
-  "version": "1.0.21",
+  "version": "1.0.22",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -32,13 +32,6 @@
     {
       "name": "AMOLED Gboard Settings",
       "description": "Use a pure-black background with readable text and controls throughout Gboard preference screens, including settings added by other patches.",
-      "use": true,
-      "dependencies": [],
-      "options": []
-    },
-    {
-      "name": "XGesture Typing Controls",
-      "description": "Add spacebar cursor controls and C/P/U/R gesture drawing, delete-key gestures, and customizable @snippets and macros.",
       "use": true,
       "dependencies": [],
       "options": []

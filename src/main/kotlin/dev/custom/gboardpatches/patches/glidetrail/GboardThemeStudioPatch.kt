@@ -20,6 +20,11 @@ private const val SOFT_KEY_VIEW =
 private const val SOFT_KEY_DEF =
     "Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;"
 
+private fun isVoidReturn(opcode: Opcode): Boolean =
+    opcode == Opcode.RETURN_VOID ||
+        opcode == Opcode.RETURN_VOID_BARRIER ||
+        opcode == Opcode.RETURN_VOID_NO_BARRIER
+
 val gboardThemeStudioPatch = bytecodePatch(
     name = "Gboard Theme Studio",
     description = "Adds Theme Studio, icon rendering, and experimental runtime styling for advanced Gboard themes.",
@@ -114,7 +119,7 @@ val gboardThemeStudioPatch = bytecodePatch(
         }
         val keyReturns = instructions
             .withIndex()
-            .filter { it.value.opcode == Opcode.RETURN_VOID }
+            .filter { isVoidReturn(it.value.opcode) }
             .map { it.index }
         if (keyReturns.isEmpty()) error("Gboard SoftKeyView render method has no return")
         keyReturns.asReversed().forEach { returnIndex ->
@@ -133,4 +138,5 @@ val gboardThemeStudioPatch = bytecodePatch(
             )
         }
     }
+
 }

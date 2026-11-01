@@ -68,7 +68,8 @@ jobs:
             without a known Gboard match are left unchanged.
           - Use Gboard Theme Studio to create/import/export WMKeyboard-compatible JSON themes.
             Experimental runtime styling adds background images and textures, wallpaper-derived
-            colors, animation, toolbar/popup styling, per-key overrides, and sticker overlays.
+            colors, animation, toolbar/popup styling, per-key overrides, opacity, icon tint, and
+            sticker overlays. Visual profiles retain Gboard's key positions and actions.
             These hooks depend on Gboard internals and are not guaranteed across versions.
           - Apply a pure-black AMOLED style to AndroidX preference rows across Gboard settings,
             including settings introduced by other patches. Custom screens that do not use
@@ -76,20 +77,13 @@ jobs:
             obfuscated binder method name when its PreferenceViewHolder signature remains.
           - Edit modifier-key and spacebar background/text colors, and apply per-key spacebar styles.
             Imported icon packs are managed in Theme Studio and are not embedded into theme exports.
+            Saved themes can be deleted from Theme Studio; deleting the active theme restores the
+            system theme.
+          - Remove the experimental XGesture patch and its gesture, drawing, snippet, and macro
+            features from the bundle.
           - Patch and sign successfully against Gboard 18.5.6.993608717-release-arm64-v8a; visual
             rendering still requires device verification and compatibility is not guaranteed for
             other Gboard versions.
-          - Add opt-in XGesture typing controls: inward keyboard-side swipes delete the previous
-            word or paste plain text; holding a bottom corner opens cursor and text-editing actions.
-            Disabled by default; this does not add system-edge, back-tap, shake, or floating-overlay
-            gestures and requires device testing on each Gboard build.
-          - Expand XGesture with rendered spacebar/delete key gestures and user-managed @snippets
-            and macros. These depend on Gboard's internal rendered-key metadata and need device
-            verification on each Gboard build.
-          - Add optional single-stroke spacebar gesture drawing: C copies, P pastes, U undoes, and
-            R redoes. Unrecognized strokes fall back to cursor movement; verify recognition on device.
-          - Register rendered keys at the SoftKeyView render-method entry rather than relying on
-            a RETURN_VOID instruction, accommodating Gboard variants with nonstandard method exits.
           - Fix native stylesheet registration so generated theme colors are loaded by Gboard, and
             enable imported icon packs while improving icon visibility and Logcat diagnostics.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.

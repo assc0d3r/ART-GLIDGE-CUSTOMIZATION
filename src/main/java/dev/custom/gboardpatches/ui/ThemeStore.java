@@ -305,6 +305,20 @@ final class ThemeStore {
                 theme.put(key, ThemeDocument.colorString((int) ((Number) value).longValue()));
             }
         }
+        Map<String, Object> keyStyles = ThemeDocument.object(theme.get("singleKeyStyles"));
+        String[] keyStyleColors = {
+            "backgroundColor", "textColor", "pressedColor", "borderColor", "iconTintColor"
+        };
+        for (Object value : keyStyles.values()) {
+            if (!(value instanceof Map)) continue;
+            Map<String, Object> style = ThemeDocument.object(value);
+            for (String key : keyStyleColors) {
+                Object color = style.get(key);
+                if (color instanceof Number) {
+                    style.put(key, ThemeDocument.colorString((int) ((Number) color).longValue()));
+                }
+            }
+        }
         for (Object value : ThemeDocument.array(theme.get("variants"))) {
             if (value instanceof Map) {
                 @SuppressWarnings("unchecked")

@@ -16,6 +16,11 @@ private const val ICON_RUNTIME =
 private const val PREFERENCE_GROUP =
     "Landroidx/preference/PreferenceGroup;"
 
+private fun isVoidReturn(opcode: Opcode): Boolean =
+    opcode == Opcode.RETURN_VOID ||
+        opcode == Opcode.RETURN_VOID_BARRIER ||
+        opcode == Opcode.RETURN_VOID_NO_BARRIER
+
 val keyboardIconPackPatch = bytecodePatch(
     name = "Keyboard Icon Packs",
     description = "Enables WMKeyboard icon replacement managed from Gboard Theme Studio.",
@@ -72,7 +77,7 @@ val keyboardIconPackPatch = bytecodePatch(
             } ?: error("Gboard key icon view could not be identified")
 
             val returnIndexes = instructions.indices.filter {
-                instructions[it].opcode == Opcode.RETURN_VOID
+                isVoidReturn(instructions[it].opcode)
             }
             if (returnIndexes.isEmpty()) error("Gboard SoftKeyView icon-render method has no return")
             val applyIconInstructions = """

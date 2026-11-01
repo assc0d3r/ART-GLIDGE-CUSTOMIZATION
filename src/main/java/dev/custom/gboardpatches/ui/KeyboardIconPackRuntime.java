@@ -232,12 +232,14 @@ public final class KeyboardIconPackRuntime {
         if (iconView instanceof ImageView) {
             ImageView image = (ImageView) iconView;
             if (image.getDrawable() instanceof BitmapDrawable &&
-                ((BitmapDrawable) image.getDrawable()).getBitmap() == bitmap) return;
-            image.setColorFilter((android.graphics.ColorFilter) null);
-            clearImageTint(image);
-            image.setImageBitmap(bitmap);
-            image.setVisibility(View.VISIBLE);
-            logOnce("applied:" + slot, "Applied an imported icon to " + slot + ".");
+                ((BitmapDrawable) image.getDrawable()).getBitmap() != bitmap) {
+                image.setColorFilter((android.graphics.ColorFilter) null);
+                clearImageTint(image);
+                image.setImageBitmap(bitmap);
+                image.setVisibility(View.VISIBLE);
+                logOnce("applied:" + slot, "Applied an imported icon to " + slot + ".");
+            }
+            KeyboardThemeRuntime.applyIconStyle(softKeyView, slot, image);
         } else {
             logOnce("view:" + softKeyView.getClass().getName(),
                 "Gboard's key icon ImageView was not found for a rendered key.");

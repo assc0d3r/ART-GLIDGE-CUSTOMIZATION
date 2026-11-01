@@ -243,19 +243,19 @@ public final class KeyboardThemeStudioActivity extends Activity {
         content.addView(group);
 
         LinearLayout looks = row();
-        looks.addView(text("Looks", 18));
+        looks.addView(text("Visual profiles (same Gboard key layout)", 18));
         addLookChip(looks, -1, "1");
         List<Object> variants = ThemeDocument.array(theme.get("variants"));
         for (int i = 0; i < variants.size(); i++) {
             Map<String, Object> variant = ThemeDocument.object(variants.get(i));
             addLookChip(looks, i, ThemeDocument.string(variant, "name", "Look " + (i + 2)));
         }
-        Button addLook = smallButton("+ Look");
+        Button addLook = smallButton("+ Profile");
         addLook.setEnabled(variants.size() < 12);
         addLook.setOnClickListener(view -> addLook());
         looks.addView(addLook);
         if (selectedVariant >= 0) {
-            Button removeLook = smallButton("Delete look");
+            Button removeLook = smallButton("Delete profile");
             removeLook.setOnClickListener(view -> deleteLook());
             looks.addView(removeLook);
         }
@@ -495,9 +495,9 @@ public final class KeyboardThemeStudioActivity extends Activity {
         addSticker.setOnClickListener(view -> startImageImport(REQUEST_STICKER_IMAGE));
         content.addView(addSticker);
 
-        content.addView(text("Per-key styles", 20));
+        content.addView(text("Per-key visual styles", 20));
         content.addView(text(
-            "Override the face, label, pressed color, or shape for individual keys.",
+            "Customize each key's colors, shape, opacity, and icon tint. Gboard still supplies key positions and actions.",
             14
         ));
         Map<String, Object> keyStyles = ThemeDocument.object(editedLook.get("singleKeyStyles"));
@@ -562,8 +562,13 @@ public final class KeyboardThemeStudioActivity extends Activity {
         EditText label = colorField(current, "textColor");
         EditText pressed = colorField(current, "pressedColor");
         EditText borderColor = colorField(current, "borderColor");
+        EditText iconTint = colorField(current, "iconTintColor");
         EditText borderWidth = numberField(ThemeDocument.number(current, "borderWidthDp", 0));
         if (ThemeDocument.number(current, "borderWidthDp", 0) <= 0) borderWidth.setText("");
+        EditText keyOpacity = numberField(ThemeDocument.number(current, "keyOpacity", 100));
+        if (!(current.get("keyOpacity") instanceof Number)) keyOpacity.setText("");
+        EditText iconOpacity = numberField(ThemeDocument.number(current, "iconOpacity", 100));
+        if (!(current.get("iconOpacity") instanceof Number)) iconOpacity.setText("");
         form.addView(text("Background color (blank follows theme)", 14));
         form.addView(background);
         form.addView(text("Label color", 14));
@@ -572,8 +577,14 @@ public final class KeyboardThemeStudioActivity extends Activity {
         form.addView(pressed);
         form.addView(text("Border color", 14));
         form.addView(borderColor);
+        form.addView(text("Icon tint (blank preserves icon colors)", 14));
+        form.addView(iconTint);
         form.addView(text("Border width in dp (0-3)", 14));
         form.addView(borderWidth);
+        form.addView(text("Key opacity (0-100%, blank is 100%)", 14));
+        form.addView(keyOpacity);
+        form.addView(text("Icon opacity (0-100%, blank is 100%)", 14));
+        form.addView(iconOpacity);
 
         Spinner shape = new Spinner(this);
         ArrayAdapter<String> shapeAdapter = new ArrayAdapter<>(
@@ -629,10 +640,13 @@ public final class KeyboardThemeStudioActivity extends Activity {
                     putOptionalColor(style, "textColor", label.getText().toString());
                     putOptionalColor(style, "pressedColor", pressed.getText().toString());
                     putOptionalColor(style, "borderColor", borderColor.getText().toString());
+                    putOptionalColor(style, "iconTintColor", iconTint.getText().toString());
                 } catch (NumberFormatException exception) {
                     showMessage("Enter colors as six or eight hexadecimal digits.");
                     return;
                 }
+                if (!putOptionalPercentage(style, "keyOpacity", keyOpacity.getText().toString()) ||
+                    !putOptionalPercentage(style, "iconOpacity", iconOpacity.getText().toString())) return;
                 String rawBorderWidth = borderWidth.getText().toString().trim();
                 if (rawBorderWidth.isEmpty()) style.remove("borderWidthDp");
                 else {
@@ -715,6 +729,23 @@ public final class KeyboardThemeStudioActivity extends Activity {
         if (value.length() == 6) value = "FF" + value;
         if (value.length() != 8) throw new NumberFormatException();
         style.put(key, Long.parseLong(value, 16));
+    }
+
+    private boolean putOptionalPercentage(Map<String, Object> style, String key, String raw) {
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            style.remove(key);
+            return true;
+        }
+        try {
+            long percentage = Long.parseLong(value);
+            if (percentage < 0 || percentage > 100) throw new NumberFormatException();
+            style.put(key, percentage);
+            return true;
+        } catch (NumberFormatException exception) {
+            showMessage("Key and icon opacity must be between 0 and 100 percent.");
+            return false;
+        }
     }
 
     private static String[] buildKeyStyleSlots() {
@@ -1375,18 +1406,29 @@ public final class KeyboardThemeStudioActivity extends Activity {
                 previewTheme,
                 "keyTextureBase64"
             );
-            float radius = Math.max(0, Math.min(height / 6f, (float) ThemeDocument.number(previewTheme, "keyCornerRadiusDp", 6) * getResources().getDisplayMetrics().density));
             float left = dp(12);
             float top = height * 0.28f;
             float keyWidth = (width - dp(36)) / 5f;
             float keyHeight = height * 0.32f;
             for (int i = 0; i < 5; i++) {
+                String slot = "key.letter_" + (char) ('a' + i);
+                Map<String, Object> style = ThemeDocument.object(
+                    ThemeDocument.object(previewTheme.get("singleKeyStyles")).get(slot)
+                );
+                int opacity = (int) ThemeDocument.number(style, "keyOpacity", 100);
                 float x = left + i * (keyWidth + dp(3));
                 RectF keyBounds = new RectF(x, top, x + keyWidth, top + keyHeight);
-                paint.setColor(i == 4 ? themeColor("enterKeyBackground") : key);
-                canvas.drawRoundRect(keyBounds, radius, radius, paint);
-                drawPreviewTexture(canvas, keyBounds, texture);
-                drawPreviewIcon(canvas, "key.letter_" + (char) ('a' + i), String.valueOf((char) ('A' + i)), keyBounds, textColor);
+                int baseBackground = i == 4 ? themeColor("enterKeyBackground") : key;
+                drawPreviewKey(canvas, keyBounds, style, baseBackground, texture, opacity);
+                drawPreviewIcon(
+                    canvas,
+                    slot,
+                    String.valueOf((char) ('A' + i)),
+                    keyBounds,
+                    ThemeDocument.color(style, "textColor", textColor),
+                    style,
+                    opacity
+                );
             }
             List<String> importedSlots = KeyboardIconPackRuntime.activeIconSlots(
                 KeyboardThemeStudioActivity.this
@@ -1407,15 +1449,27 @@ public final class KeyboardThemeStudioActivity extends Activity {
             float rowHeight = Math.max(dp(22), height - rowTop - dp(10));
             float modifierWidth = (width - 2 * left - dp(12)) / modifierSlots.length;
             for (int index = 0; index < modifierSlots.length; index++) {
+                Map<String, Object> style = ThemeDocument.object(
+                    ThemeDocument.object(previewTheme.get("singleKeyStyles")).get(modifierSlots[index])
+                );
+                int opacity = (int) ThemeDocument.number(style, "keyOpacity", 100);
                 float x = left + index * (modifierWidth + dp(4));
                 RectF bounds = new RectF(x, rowTop, x + modifierWidth, rowTop + rowHeight);
-                paint.setColor(index == modifierSlots.length - 1
+                int baseBackground = index == modifierSlots.length - 1
                     ? themeColor("enterKeyBackground")
-                    : themeColor("modifierKeyBackground"));
-                canvas.drawRoundRect(bounds, radius, radius, paint);
-                drawPreviewTexture(canvas, bounds, texture);
+                    : themeColor("modifierKeyBackground");
+                drawPreviewKey(canvas, bounds, style, baseBackground, texture, opacity);
                 drawPreviewIcon(canvas, modifierSlots[index], modifierLabels[index], bounds,
-                    index == modifierSlots.length - 1 ? themeColor("enterKeyText") : themeColor("modifierKeyText"));
+                    ThemeDocument.color(
+                        style,
+                        "textColor",
+                        index == modifierSlots.length - 1
+                            ? themeColor("enterKeyText")
+                            : themeColor("modifierKeyText")
+                    ),
+                    style,
+                    opacity
+                );
             }
             drawPreviewStickers(canvas, width, height);
         }
@@ -1444,14 +1498,81 @@ public final class KeyboardThemeStudioActivity extends Activity {
             }
         }
 
-        private void drawPreviewTexture(Canvas canvas, RectF bounds, android.graphics.Bitmap texture) {
-            if (texture == null || texture.isRecycled()) return;
-            paint.setAlpha((int) ThemeDocument.number(previewTheme, "keyTextureOpacity", 100) * 255 / 100);
-            canvas.drawBitmap(texture, null, bounds, paint);
-            paint.setAlpha(255);
+        private void drawPreviewKey(
+            Canvas canvas,
+            RectF bounds,
+            Map<String, Object> style,
+            int baseBackground,
+            android.graphics.Bitmap defaultTexture,
+            int opacity
+        ) {
+            String shape = ThemeDocument.string(
+                style,
+                "keyShape",
+                ThemeDocument.string(previewTheme, "keyShape", "ROUNDED")
+            );
+            float density = getResources().getDisplayMetrics().density;
+            float radius = (float) ThemeDocument.number(
+                style,
+                "keyCornerRadiusDp",
+                ThemeDocument.number(previewTheme, "keyCornerRadiusDp", 6)
+            ) * density;
+            if ("SHARP".equalsIgnoreCase(shape)) radius = 0;
+            else if ("PILL".equalsIgnoreCase(shape) || "CIRCLE".equalsIgnoreCase(shape)) {
+                radius = bounds.height() / 2f;
+            }
+            android.graphics.Bitmap texture = KeyboardThemeRuntime.previewBitmap(style, "imageBase64");
+            if (texture == null) texture = defaultTexture;
+            int pressed = ThemeDocument.color(
+                style,
+                "pressedColor",
+                ThemeDocument.color(
+                    previewTheme,
+                    "pressedKeyBackground",
+                    ThemeDocument.color(previewTheme, "accent", baseBackground)
+                )
+            );
+            ThemeKeyDrawable drawable = new ThemeKeyDrawable(
+                ThemeDocument.color(style, "backgroundColor", baseBackground),
+                pressed,
+                ThemeDocument.color(
+                    style,
+                    "borderColor",
+                    ThemeDocument.color(previewTheme, "keyBorderColor", 0)
+                ),
+                (float) ThemeDocument.number(
+                    style,
+                    "borderWidthDp",
+                    ThemeDocument.number(previewTheme, "keyBorderWidthDp", 0)
+                ) * density,
+                radius,
+                shape,
+                new int[0],
+                "LINEAR",
+                45,
+                texture,
+                ThemeDocument.string(previewTheme, "keyTextureFit", "CROP"),
+                (int) ThemeDocument.number(previewTheme, "keyTextureOpacity", 100)
+            );
+            drawable.setBounds(
+                Math.round(bounds.left),
+                Math.round(bounds.top),
+                Math.round(bounds.right),
+                Math.round(bounds.bottom)
+            );
+            drawable.setAlpha(Math.max(0, Math.min(100, opacity)) * 255 / 100);
+            drawable.draw(canvas);
         }
 
-        private void drawPreviewIcon(Canvas canvas, String slot, String fallback, RectF bounds, int fallbackColor) {
+        private void drawPreviewIcon(
+            Canvas canvas,
+            String slot,
+            String fallback,
+            RectF bounds,
+            int fallbackColor,
+            Map<String, Object> style,
+            int keyOpacity
+        ) {
             android.graphics.Bitmap bitmap = KeyboardIconPackRuntime.previewIcon(
                 KeyboardThemeStudioActivity.this,
                 slot
@@ -1463,17 +1584,32 @@ public final class KeyboardThemeStudioActivity extends Activity {
                     bounds.right - bounds.width() * 0.2f,
                     bounds.bottom - bounds.height() * 0.2f
                 );
-                paint.setAlpha(255);
+                Object tint = style.get("iconTintColor");
+                if (tint instanceof Number) {
+                    paint.setColorFilter(new android.graphics.PorterDuffColorFilter(
+                        ThemeDocument.color(style, "iconTintColor", 0xFFFFFFFF),
+                        android.graphics.PorterDuff.Mode.SRC_IN
+                    ));
+                }
+                int iconOpacity = (int) ThemeDocument.number(style, "iconOpacity", 100);
+                paint.setAlpha(
+                    Math.max(0, Math.min(100, keyOpacity)) *
+                        Math.max(0, Math.min(100, iconOpacity)) * 255 / 10000
+                );
                 canvas.drawBitmap(bitmap, null, imageBounds, paint);
+                paint.setColorFilter(null);
+                paint.setAlpha(255);
                 return;
             }
             paint.setColor(fallbackColor);
+            paint.setAlpha(Math.max(0, Math.min(100, keyOpacity)) * 255 / 100);
             paint.setTextSize(Math.min(dp(18), bounds.height() * 0.6f));
             paint.setTextAlign(Paint.Align.CENTER);
             Paint.FontMetrics metrics = paint.getFontMetrics();
             float baseline = bounds.centerY() - (metrics.ascent + metrics.descent) / 2f;
             canvas.drawText(fallback, bounds.centerX(), baseline, paint);
             paint.setTextAlign(Paint.Align.LEFT);
+            paint.setAlpha(255);
         }
     }
 }

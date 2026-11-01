@@ -14,6 +14,7 @@ import android.util.LruCache;
 import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import java.util.WeakHashMap;
 import java.util.List;
@@ -29,6 +30,8 @@ public final class KeyboardThemeRuntime {
     private static final WeakHashMap<View, ThemeStickerDrawable> STICKER_DRAWABLES = new WeakHashMap<>();
     private static final WeakHashMap<View, Long> SURFACE_SCAN_TIMES = new WeakHashMap<>();
     private static final WeakHashMap<View, Drawable> ORIGINAL_BACKGROUNDS = new WeakHashMap<>();
+    private static final WeakHashMap<View, Float> ORIGINAL_VIEW_ALPHAS = new WeakHashMap<>();
+    private static final WeakHashMap<ImageView, OriginalIconStyle> ORIGINAL_ICON_STYLES = new WeakHashMap<>();
     private static final WeakHashMap<TextView, ColorStateList> ORIGINAL_TEXT_COLORS = new WeakHashMap<>();
     private static final WeakHashMap<TextView, android.graphics.Typeface> ORIGINAL_TYPEFACES = new WeakHashMap<>();
     private static final WeakHashMap<TextView, Float> ORIGINAL_TEXT_SIZES = new WeakHashMap<>();
@@ -104,6 +107,9 @@ public final class KeyboardThemeRuntime {
             String keySlot = KeyboardIconPackRuntime.resolveSlot(keyView, softKeyDef);
             Map<String, Object> keyStyles = ThemeDocument.object(theme.get("singleKeyStyles"));
             Map<String, Object> keyStyle = ThemeDocument.object(keyStyles.get(keySlot));
+            captureOriginalAlpha(keyView);
+            float originalAlpha = ORIGINAL_VIEW_ALPHAS.get(keyView);
+            keyView.setAlpha(originalAlpha * percent(ThemeDocument.number(keyStyle, "keyOpacity", 100)));
             int defaultText = color(theme, "keyText", 0xFFE9E9EE);
             int keyText = enter ? color(theme, "enterKeyText", defaultText)
                 : spacebar ? color(theme, "spacebarText", defaultText)
@@ -158,8 +164,133 @@ public final class KeyboardThemeRuntime {
             ));
             setTextColors(keyView, keyText);
             applyKeyTextStyle(keyView, keyStyle);
+            applyKeyIconStyles(keyView, keyStyle);
         } catch (RuntimeException exception) {
             Log.w(TAG, "Unable to apply the selected Gboard theme to a key.", exception);
+        }
+    }
+
+    public static boolean applyIconStyle(View keyView, String keySlot, ImageView image) {
+        if (keyView == null || image == null || keySlot == null) return false;
+        try {
+            Map<String, Object> theme = theme(keyView.getContext());
+            Map<String, Object> styles = ThemeDocument.object(theme.get("singleKeyStyles"));
+            Map<String, Object> style = ThemeDocument.object(styles.get(keySlot));
+            if (!hasColorValue(style, "iconTintColor") && !hasNumberValue(style, "iconOpacity")) {
+                return false;
+            }
+            return applyIconStyle(image, style);
+        } catch (RuntimeException exception) {
+            Log.w(TAG, "Unable to apply the selected icon style.", exception);
+            return false;
+        }
+    }
+
+    private static void applyKeyIconStyles(View view, Map<String, Object> style) {
+        if (view instanceof ImageView) applyIconStyle((ImageView) view, style);
+        if (!(view instanceof ViewGroup)) return;
+        ViewGroup group = (ViewGroup) view;
+        for (int index = 0; index < group.getChildCount(); index++) {
+            applyKeyIconStyles(group.getChildAt(index), style);
+        }
+    }
+
+    private static boolean applyIconStyle(ImageView image, Map<String, Object> style) {
+        boolean hasTint = hasColorValue(style, "iconTintColor");
+        boolean hasOpacity = hasNumberValue(style, "iconOpacity");
+        if (!hasTint && !hasOpacity) {
+            restoreIconStyle(image);
+            return false;
+        }
+        captureOriginalIconStyle(image);
+        OriginalIconStyle original = ORIGINAL_ICON_STYLES.get(image);
+        if (hasTint) {
+            setImageTintList(image, null);
+            image.setColorFilter(new android.graphics.PorterDuffColorFilter(
+                color(style, "iconTintColor", 0xFFFFFFFF),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            ));
+        } else {
+            image.setColorFilter(original.colorFilter);
+            setImageTintList(image, original.tintList);
+        }
+        image.setImageAlpha((int) (
+            original.imageAlpha * percent(ThemeDocument.number(style, "iconOpacity", 100))
+        ));
+        return true;
+    }
+
+    private static float percent(long value) {
+        return Math.max(0, Math.min(100, value)) / 100f;
+    }
+
+    private static boolean hasColorValue(Map<String, Object> values, String key) {
+        Object value = values.get(key);
+        if (value instanceof Number) return true;
+        return value instanceof String &&
+            color(values, key, Integer.MIN_VALUE) != Integer.MIN_VALUE;
+    }
+
+    private static boolean hasNumberValue(Map<String, Object> values, String key) {
+        Object value = values.get(key);
+        return (value instanceof Number || value instanceof String) &&
+            ThemeDocument.number(values, key, Long.MIN_VALUE) != Long.MIN_VALUE;
+    }
+
+    private static void captureOriginalAlpha(View view) {
+        if (!ORIGINAL_VIEW_ALPHAS.containsKey(view)) {
+            ORIGINAL_VIEW_ALPHAS.put(view, view.getAlpha());
+        }
+    }
+
+    private static final class OriginalIconStyle {
+        final android.graphics.ColorFilter colorFilter;
+        final ColorStateList tintList;
+        final int imageAlpha;
+
+        OriginalIconStyle(android.graphics.ColorFilter colorFilter, ColorStateList tintList, int imageAlpha) {
+            this.colorFilter = colorFilter;
+            this.tintList = tintList;
+            this.imageAlpha = imageAlpha;
+        }
+    }
+
+    private static void captureOriginalIconStyle(ImageView image) {
+        if (ORIGINAL_ICON_STYLES.containsKey(image)) return;
+        ORIGINAL_ICON_STYLES.put(image, new OriginalIconStyle(
+            image.getColorFilter(),
+            imageTintList(image),
+            image.getImageAlpha()
+        ));
+    }
+
+    private static void restoreIconStyle(ImageView image) {
+        OriginalIconStyle original = ORIGINAL_ICON_STYLES.get(image);
+        if (original == null) return;
+        image.setColorFilter(original.colorFilter);
+        setImageTintList(image, original.tintList);
+        image.setImageAlpha(original.imageAlpha);
+    }
+
+    private static ColorStateList imageTintList(ImageView image) {
+        try {
+            Object value = ImageView.class.getMethod("getImageTintList").invoke(image);
+            return value instanceof ColorStateList ? (ColorStateList) value : null;
+        } catch (NoSuchMethodException ignored) {
+            return null;
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            Log.w(TAG, "Unable to read Gboard's icon tint.", exception);
+            return null;
+        }
+    }
+
+    private static void setImageTintList(ImageView image, ColorStateList tint) {
+        try {
+            ImageView.class.getMethod("setImageTintList", ColorStateList.class).invoke(image, tint);
+        } catch (NoSuchMethodException ignored) {
+            // Image tint lists are unavailable on older Android versions.
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            Log.w(TAG, "Unable to restore Gboard's icon tint.", exception);
         }
     }
 
@@ -534,6 +665,9 @@ public final class KeyboardThemeRuntime {
         if (ORIGINAL_BACKGROUNDS.containsKey(view)) {
             view.setBackground(ORIGINAL_BACKGROUNDS.get(view));
         }
+        Float originalAlpha = ORIGINAL_VIEW_ALPHAS.get(view);
+        if (originalAlpha != null) view.setAlpha(originalAlpha);
+        if (view instanceof ImageView) restoreIconStyle((ImageView) view);
         if (view instanceof TextView) {
             TextView textView = (TextView) view;
             ColorStateList originalColors = ORIGINAL_TEXT_COLORS.get(textView);
