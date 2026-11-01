@@ -88,6 +88,8 @@ jobs:
             verification on each Gboard build.
           - Add optional single-stroke spacebar gesture drawing: C copies, P pastes, U undoes, and
             R redoes. Unrecognized strokes fall back to cursor movement; verify recognition on device.
+          - Register rendered keys at the SoftKeyView render-method entry rather than relying on
+            a RETURN_VOID instruction, accommodating Gboard variants with nonstandard method exits.
           - Fix native stylesheet registration so generated theme colors are loaded by Gboard, and
             enable imported icon packs while improving icon visibility and Logcat diagnostics.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.

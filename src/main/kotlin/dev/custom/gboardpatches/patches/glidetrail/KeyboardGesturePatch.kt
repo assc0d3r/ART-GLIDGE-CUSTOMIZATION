@@ -106,21 +106,17 @@ val keyboardGesturePatch = bytecodePatch(
                 it.parameterTypes == listOf(SOFT_KEY_DEFINITION) &&
                 it.returnType == "V"
         } ?: error("Gboard SoftKeyView render method not found; XGesture cannot identify space/delete keys.")
-        val keyRenderReturns = keyRenderMethod.implementation?.instructions
-            ?.mapIndexedNotNull { index, instruction ->
-                if (instruction.opcode.name == "RETURN_VOID") index else null
-            } ?: error("Gboard SoftKeyView render method has no implementation.")
-        if (keyRenderReturns.isEmpty()) error("Gboard SoftKeyView render method has no return.")
-        keyRenderReturns.asReversed().forEach { returnIndex ->
-            keyRenderMethod.addInstructions(
-                returnIndex,
-                """
-                move-object/from16 v0, p0
-                move-object/from16 v1, p1
-                invoke-static {v0, v1}, $GESTURE_RUNTIME->registerRenderedKey(Landroid/view/View;Ljava/lang/Object;)V
-                """.trimIndent()
-            )
+        if (keyRenderMethod.implementation == null) {
+            error("Gboard SoftKeyView render method has no implementation.")
         }
+        keyRenderMethod.addInstructions(
+            0,
+            """
+            move-object/from16 v0, p0
+            move-object/from16 v1, p1
+            invoke-static {v0, v1}, $GESTURE_RUNTIME->registerRenderedKey(Landroid/view/View;Ljava/lang/Object;)V
+            """.trimIndent()
+        )
     }
 }
 

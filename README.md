@@ -85,5 +85,5 @@ input fields.
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.20.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.21.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.
