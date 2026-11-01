@@ -63,8 +63,10 @@ jobs:
             heuristic affects glide and ordinary suggestion rows and cannot distinguish languages
             that use the same script.
           - Import WMKeyboard `.wmicons`/ZIP packs and apply icons to supported Gboard keys and
-            toolbar buttons using key metadata or accessibility labels. The enabled state follows
-            Gboard's persistent switch. Slots without a known Gboard match are left unchanged.
+            toolbar buttons using key metadata or accessibility labels. Theme Studio's keyboard
+            render hook also applies imported icons directly, including a fallback search for the
+            visible key image view. The enabled state follows Gboard's persistent switch. Slots
+            without a known Gboard match are left unchanged.
           - Use Gboard Theme Studio to create/import/export WMKeyboard-compatible JSON themes.
             Experimental runtime styling adds background images and textures, wallpaper-derived
             colors, animation, toolbar/popup styling, per-key overrides, and sticker overlays.

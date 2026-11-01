@@ -10,6 +10,8 @@ import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 private const val THEME_RUNTIME =
     "Ldev/custom/gboardpatches/ui/KeyboardThemeRuntime;"
+private const val ICON_RUNTIME =
+    "Ldev/custom/gboardpatches/ui/KeyboardIconPackRuntime;"
 private const val THEME_PREFERENCE_GROUP =
     "Landroidx/preference/PreferenceGroup;"
 private const val SOFT_KEY_VIEW =
@@ -19,7 +21,7 @@ private const val SOFT_KEY_DEF =
 
 val gboardThemeStudioPatch = bytecodePatch(
     name = "Gboard Theme Studio",
-    description = "Adds Theme Studio and experimental runtime styling for advanced Gboard themes.",
+    description = "Adds Theme Studio, icon rendering, and experimental runtime styling for advanced Gboard themes.",
     default = true
 ) {
     compatibleWith(
@@ -93,6 +95,7 @@ val gboardThemeStudioPatch = bytecodePatch(
                 move-object/from16 v0, p0
                 move-object/from16 v1, p1
                 invoke-static {v0, v1}, $THEME_RUNTIME->applyKey(Landroid/view/View;Ljava/lang/Object;)V
+                invoke-static {v0, v1}, $ICON_RUNTIME->applyIcon(Landroid/view/View;Ljava/lang/Object;)V
                 """.trimIndent()
             )
         }

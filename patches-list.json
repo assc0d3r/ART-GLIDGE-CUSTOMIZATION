@@ -1,5 +1,5 @@
 {
-  "version": "1.0.13",
+  "version": "1.0.14",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -24,7 +24,7 @@
     },
     {
       "name": "Gboard Theme Studio",
-      "description": "Create WMKeyboard-compatible themes with experimental Gboard runtime styling for backgrounds, key overrides, stickers, and surfaces.",
+      "description": "Create WMKeyboard-compatible themes, render imported icons directly from Theme Studio, and apply experimental runtime styling for backgrounds, per-key overrides, stickers, and surfaces.",
       "use": true,
       "dependencies": [],
       "options": []

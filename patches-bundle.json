@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-10-31T12:43:37+05:30",
-  "description": "Morphe patches for Gboard glide trail customization, script-aware multilingual suggestions, WMKeyboard icon packs, and experimental extended Gboard Theme Studio styling.",
-  "download_url": "https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/releases/download/v1.0.13/patches-1.0.13.mpp",
+  "created_at": "2026-11-01T11:30:33+05:30",
+  "description": "Morphe patches for Gboard glide trail customization, script-aware multilingual suggestions, WMKeyboard icon packs, and experimental extended Gboard Theme Studio styling with integrated icon rendering.",
+  "download_url": "https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/releases/download/v1.0.14/patches-1.0.14.mpp",
   "signature_download_url": "",
-  "version": "1.0.13"
+  "version": "1.0.14"
 }

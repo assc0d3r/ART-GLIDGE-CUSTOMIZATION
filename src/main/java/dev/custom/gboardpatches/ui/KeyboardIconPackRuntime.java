@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.Log;
 import android.util.LruCache;
 import android.view.View;
@@ -227,9 +228,12 @@ public final class KeyboardIconPackRuntime {
             }
             BITMAP_CACHE.put(cacheKey, bitmap);
         }
-        View iconView = softKeyView.findViewById(imageViewId);
+        View iconView = imageViewId == 0 ? null : softKeyView.findViewById(imageViewId);
+        if (!(iconView instanceof ImageView)) iconView = findIconImageView(softKeyView);
         if (iconView instanceof ImageView) {
             ImageView image = (ImageView) iconView;
+            if (image.getDrawable() instanceof BitmapDrawable &&
+                ((BitmapDrawable) image.getDrawable()).getBitmap() == bitmap) return;
             image.setColorFilter((android.graphics.ColorFilter) null);
             clearImageTint(image);
             image.setImageBitmap(bitmap);
@@ -239,6 +243,27 @@ public final class KeyboardIconPackRuntime {
             logOnce("view:" + softKeyView.getClass().getName(),
                 "Gboard's key icon ImageView was not found for a rendered key.");
         }
+    }
+
+    public static void applyIcon(View softKeyView, Object softKeyDef) {
+        applyIcon(softKeyView, softKeyDef, 0);
+    }
+
+    private static ImageView findIconImageView(View view) {
+        if (view instanceof ImageView) {
+            ImageView image = (ImageView) view;
+            return image.getVisibility() == View.VISIBLE ? image : null;
+        }
+        if (!(view instanceof android.view.ViewGroup)) return null;
+        android.view.ViewGroup group = (android.view.ViewGroup) view;
+        ImageView visibleImage = null;
+        for (int index = 0; index < group.getChildCount(); index++) {
+            ImageView image = findIconImageView(group.getChildAt(index));
+            if (image == null) continue;
+            if (image.getDrawable() != null) return image;
+            if (visibleImage == null) visibleImage = image;
+        }
+        return visibleImage;
     }
 
     public static int activeIconCount(Context context) {
