@@ -12,11 +12,8 @@ private const val KEYBOARD_ICON_MANIFEST = "AndroidManifest.xml"
 private const val KEYBOARD_ICON_ACTIVITY =
     "dev.custom.gboardpatches.ui.KeyboardIconPackImportActivity"
 
-const val PREF_KEY_KEYBOARD_ICONS_ENABLED = "pref_key_keyboard_icons_enabled"
-const val PREF_KEY_KEYBOARD_ICON_PACK_IMPORT = "pref_key_keyboard_icon_pack_import"
-
 val keyboardIconPackSettingsPatch = resourcePatch(
-    description = "Adds WMKeyboard icon-pack import and enable controls to Gboard Settings."
+    description = "Registers the WMKeyboard icon-pack importer without duplicating Theme Studio controls."
 ) {
     compatibleWith(
         Compatibility(
@@ -45,41 +42,30 @@ val keyboardIconPackSettingsPatch = resourcePatch(
 
 internal fun applyKeyboardIconPackSettings(document: Document) {
     val root = document.documentElement ?: return
-    if (root.findPreference(PREF_KEY_KEYBOARD_ICON_PACK_IMPORT) != null) {
-        root.findPreference(PREF_KEY_KEYBOARD_ICONS_ENABLED)
-            ?.setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:persistent", "true")
-        return
-    }
+    removeLegacyIconPackPreferences(root)
+}
 
-    val category = document.createElement("androidx.preference.PreferenceCategory").apply {
-        setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:title", "Keyboard Icon Packs")
+private fun removeLegacyIconPackPreferences(parent: Element) {
+    val children = parent.childNodes
+    for (index in children.length - 1 downTo 0) {
+        val child = children.item(index) as? Element ?: continue
+        val key = child.getAttributeNS(KEYBOARD_ICON_ANDROID_NS, "key")
+        if (
+            key == "pref_key_keyboard_icons_enabled" ||
+            key == "pref_key_keyboard_icon_pack_import"
+        ) {
+            parent.removeChild(child)
+            continue
+        }
+        removeLegacyIconPackPreferences(child)
+        if (
+            child.tagName.endsWith("PreferenceCategory") &&
+            child.getAttributeNS(KEYBOARD_ICON_ANDROID_NS, "title") == "Keyboard Icon Packs" &&
+            !child.hasElementChildren()
+        ) {
+            parent.removeChild(child)
+        }
     }
-    category.appendChild(
-        document.createElement("SwitchPreferenceCompat").apply {
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:persistent", "true")
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:title", "Use imported keyboard icons")
-            setAttributeNS(
-                KEYBOARD_ICON_ANDROID_NS,
-                "android:summary",
-                "Automatically enabled after importing; replaces supported matching Gboard icons",
-            )
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:key", PREF_KEY_KEYBOARD_ICONS_ENABLED)
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:defaultValue", "false")
-        }
-    )
-    category.appendChild(
-        document.createElement("Preference").apply {
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:persistent", "false")
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:title", "Import WMKeyboard icon pack")
-            setAttributeNS(
-                KEYBOARD_ICON_ANDROID_NS,
-                "android:summary",
-                "Choose a .wmicons or ZIP file. Importing enables replacement for supported Gboard icons.",
-            )
-            setAttributeNS(KEYBOARD_ICON_ANDROID_NS, "android:key", PREF_KEY_KEYBOARD_ICON_PACK_IMPORT)
-        }
-    )
-    root.appendChild(category)
 }
 
 internal fun addKeyboardIconImportActivity(document: Document) {
@@ -107,12 +93,10 @@ internal fun addKeyboardIconImportActivity(document: Document) {
     )
 }
 
-private fun Element.findPreference(targetKey: String): Element? {
-    if (getAttributeNS(KEYBOARD_ICON_ANDROID_NS, "key") == targetKey) return this
+private fun Element.hasElementChildren(): Boolean {
     val children = childNodes
     for (index in 0 until children.length) {
-        val child = children.item(index) as? Element ?: continue
-        child.findPreference(targetKey)?.let { return it }
+        if (children.item(index) is Element) return true
     }
-    return null
+    return false
 }

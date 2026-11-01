@@ -62,10 +62,9 @@ jobs:
           - Optionally promote suggestions written in a different Unicode script. This best-effort
             heuristic affects glide and ordinary suggestion rows and cannot distinguish languages
             that use the same script.
-          - Import WMKeyboard `.wmicons`/ZIP packs and apply icons to supported Gboard keys and
-            toolbar buttons using key metadata or accessibility labels. Theme Studio's keyboard
-            render hook also applies imported icons directly, including a fallback search for the
-            visible key image view. The enabled state follows Gboard's persistent switch. Slots
+          - Manage WMKeyboard `.wmicons`/ZIP imports and icon replacement from Theme Studio; the
+            separate Keyboard Icon Packs patch depends on Theme Studio. Icon lookup prioritizes
+            Gboard key metadata, then uses a fallback search for a visible key image view. Slots
             without a known Gboard match are left unchanged.
           - Use Gboard Theme Studio to create/import/export WMKeyboard-compatible JSON themes.
             Experimental runtime styling adds background images and textures, wallpaper-derived
@@ -75,8 +74,11 @@ jobs:
             including settings introduced by other patches. Custom screens that do not use
             AndroidX Preference rows are not covered. The row-binding hook tolerates an
             obfuscated binder method name when its PreferenceViewHolder signature remains.
-          - Build and activate a Gboard-native ZIP theme for base colors and key shape; imported
-            icon packs remain managed separately and are not embedded into theme exports.
+          - Edit modifier-key and spacebar background/text colors, and apply per-key spacebar styles.
+            Imported icon packs are managed in Theme Studio and are not embedded into theme exports.
+          - Patch and sign successfully against Gboard 18.5.6.993608717-release-arm64-v8a; visual
+            rendering still requires device verification and compatibility is not guaranteed for
+            other Gboard versions.
           - Fix native stylesheet registration so generated theme colors are loaded by Gboard, and
             enable imported icon packs while improving icon visibility and Logcat diagnostics.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.

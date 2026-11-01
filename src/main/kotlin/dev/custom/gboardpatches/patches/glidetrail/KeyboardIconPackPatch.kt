@@ -18,7 +18,7 @@ private const val PREFERENCE_GROUP =
 
 val keyboardIconPackPatch = bytecodePatch(
     name = "Keyboard Icon Packs",
-    description = "Imports WMKeyboard icon packs and applies matching icons to Gboard keys and toolbar buttons.",
+    description = "Enables WMKeyboard icon replacement managed from Gboard Theme Studio.",
     default = true
 ) {
     compatibleWith(
@@ -28,6 +28,7 @@ val keyboardIconPackPatch = bytecodePatch(
             targets = listOf(AppTarget(version = null, isExperimental = true))
         )
     )
+    dependsOn(gboardThemeStudioPatch)
     dependsOn(keyboardIconPackSettingsPatch)
     extendWith("colorwheel.dex")
 
@@ -42,45 +43,47 @@ val keyboardIconPackPatch = bytecodePatch(
         val implementation = renderIcons.implementation
             ?: error("Gboard SoftKeyView icon-render method has no implementation")
         val instructions = implementation.instructions.toList()
-
-        val imageViewId = instructions.indices.firstNotNullOfOrNull { index ->
+        val iconHookAlreadyPresent = instructions.any { instruction ->
             val methodReference =
-                (instructions[index] as? ReferenceInstruction)?.reference as? MethodReference
-                    ?: return@firstNotNullOfOrNull null
-            if (
-                instructions[index].opcode != Opcode.INVOKE_VIRTUAL ||
-                methodReference.definingClass != softKeyView.type ||
-                methodReference.parameterTypes != listOf("I") ||
-                methodReference.returnType != "Landroid/view/View;"
-            ) {
-                return@firstNotNullOfOrNull null
-            }
+                (instruction as? ReferenceInstruction)?.reference as? MethodReference
+            methodReference?.definingClass == ICON_RUNTIME &&
+                methodReference.name == "applyIcon"
+        }
+        if (!iconHookAlreadyPresent) {
+            val imageViewId = instructions.indices.firstNotNullOfOrNull { index ->
+                val methodReference =
+                    (instructions[index] as? ReferenceInstruction)?.reference as? MethodReference
+                        ?: return@firstNotNullOfOrNull null
+                if (
+                    instructions[index].opcode != Opcode.INVOKE_VIRTUAL ||
+                    methodReference.definingClass != softKeyView.type ||
+                    methodReference.parameterTypes != listOf("I") ||
+                    methodReference.returnType != "Landroid/view/View;"
+                ) return@firstNotNullOfOrNull null
 
-            val castsToImageView = instructions
-                .drop(index + 1)
-                .take(5)
-                .any { instruction ->
+                val castsToImageView = instructions.drop(index + 1).take(5).any { instruction ->
                     instruction.opcode == Opcode.CHECK_CAST &&
                         (instruction as? ReferenceInstruction)?.reference?.toString() ==
                         "Landroid/widget/ImageView;"
                 }
-            if (!castsToImageView) return@firstNotNullOfOrNull null
+                if (!castsToImageView) return@firstNotNullOfOrNull null
 
-            (instructions.getOrNull(index - 1) as? NarrowLiteralInstruction)?.narrowLiteral
-        } ?: error("Gboard key icon view could not be identified")
+                (instructions.getOrNull(index - 1) as? NarrowLiteralInstruction)?.narrowLiteral
+            } ?: error("Gboard key icon view could not be identified")
 
-        val returnIndexes = instructions.indices.filter {
-            instructions[it].opcode == Opcode.RETURN_VOID
-        }
-        if (returnIndexes.isEmpty()) error("Gboard SoftKeyView icon-render method has no return")
-        val applyIconInstructions = """
-            move-object/from16 v0, p0
-            move-object/from16 v1, p1
-            const v2, $imageViewId
-            invoke-static {v0, v1, v2}, $ICON_RUNTIME->applyIcon(Landroid/view/View;Ljava/lang/Object;I)V
-            """.trimIndent()
-        returnIndexes.asReversed().forEach { returnIndex ->
-            renderIcons.addInstructions(returnIndex, applyIconInstructions)
+            val returnIndexes = instructions.indices.filter {
+                instructions[it].opcode == Opcode.RETURN_VOID
+            }
+            if (returnIndexes.isEmpty()) error("Gboard SoftKeyView icon-render method has no return")
+            val applyIconInstructions = """
+                move-object/from16 v0, p0
+                move-object/from16 v1, p1
+                const v2, $imageViewId
+                invoke-static {v0, v1, v2}, $ICON_RUNTIME->applyIcon(Landroid/view/View;Ljava/lang/Object;I)V
+                """.trimIndent()
+            returnIndexes.asReversed().forEach { returnIndex ->
+                renderIcons.addInstructions(returnIndex, applyIconInstructions)
+            }
         }
 
         var preferenceHooks = 0

@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.custom.gboardpatches"
-version = "1.0.12"
+version = "1.0.17"
 
 repositories {
     mavenCentral()

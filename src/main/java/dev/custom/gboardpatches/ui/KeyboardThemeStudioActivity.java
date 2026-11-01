@@ -22,6 +22,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import java.io.IOException;
@@ -46,13 +47,15 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private static final int MAX_HISTORY = 30;
     private static final String[] EDITABLE_COLORS = {
         "boardBackground", "keyBackground", "keyText", "modifierKeyBackground",
-        "modifierKeyText", "enterKeyBackground", "enterKeyText", "pressedKeyBackground",
+        "modifierKeyText", "spacebarBackground", "spacebarText",
+        "enterKeyBackground", "enterKeyText", "pressedKeyBackground",
         "accent", "keyBorderColor", "toolbarBackground", "toolbarToolBackground",
         "toolbarToolIcon", "suggestionStripBackground", "suggestionText",
         "popupBackground", "popupText", "popupOutline"
     };
     private static final String[] COLOR_LABELS = {
-        "Board", "Letter keys", "Key text", "Modifier keys", "Modifier text",
+        "Board", "Letter keys", "Key text", "Modifier key background", "Modifier key text",
+        "Spacebar background", "Spacebar text",
         "Enter key", "Enter text", "Pressed key", "Accent", "Key border",
         "Toolbar", "Toolbar tools", "Toolbar icons", "Suggestion strip", "Suggestion text",
         "Popup background", "Popup text", "Popup outline"
@@ -144,7 +147,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
         TextView heading = text("Gboard Theme Studio", 24);
         content.addView(heading);
         content.addView(text(
-            "Create themes and apply colors through Gboard's native ZIP-theme system. Native activation currently requires Gboard 18.5.4.",
+            "Create themes and apply colors through Gboard's native ZIP-theme system. Theme activation and per-key rendering depend on Gboard internals and are not verified on every version.",
             14
         ));
 
@@ -269,6 +272,22 @@ public final class KeyboardThemeStudioActivity extends Activity {
         importIcons.setOnClickListener(view -> startIconImport());
         iconRow.addView(importIcons);
         content.addView(iconRow);
+        Switch enableIcons = new Switch(this);
+        enableIcons.setText("Apply imported icons to supported keys");
+        enableIcons.setChecked(iconPacksEnabled());
+        enableIcons.setOnCheckedChangeListener((button, checked) -> {
+            if (checked && iconCount == 0) {
+                button.setChecked(false);
+                showMessage("Import an icon pack before enabling icon replacement.");
+                return;
+            }
+            GlideTrailPreferences.savePrefBoolean(
+                this,
+                KeyboardIconPackRuntime.PREF_ENABLED,
+                checked
+            );
+        });
+        content.addView(enableIcons);
 
         content.addView(text("Colors", 20));
         for (int i = 0; i < EDITABLE_COLORS.length; i++) {
@@ -706,7 +725,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
             "key.enter", "key.enter_search", "key.enter_send", "key.enter_done",
             "key.enter_next", "key.enter_previous", "key.enter_go", "key.shift",
             "key.shift_on", "key.shift_lock", "key.backspace", "key.forward_delete",
-            "key.tab", "key.globe", "key.input_method_picker", "key.emoji",
+            "key.tab", "key.space", "key.globe", "key.input_method_picker", "key.emoji",
             "key.arrow_left", "key.arrow_right", "key.arrow_up", "key.arrow_down"
         };
         slots.addAll(java.util.Arrays.asList(special));
@@ -763,6 +782,12 @@ public final class KeyboardThemeStudioActivity extends Activity {
             return ThemeDocument.color(editedLook, key, 0xFF17181C);
         }
         if ("modifierKeyText".equals(key) || "enterKeyText".equals(key)) {
+            return ThemeDocument.color(editedLook, "keyText", 0xFFE9E9EE);
+        }
+        if ("spacebarBackground".equals(key)) {
+            return ThemeDocument.color(editedLook, "keyBackground", 0xFF303338);
+        }
+        if ("spacebarText".equals(key)) {
             return ThemeDocument.color(editedLook, "keyText", 0xFFE9E9EE);
         }
         if ("toolbarBackground".equals(key) || "suggestionStripBackground".equals(key) ||
@@ -1225,6 +1250,12 @@ public final class KeyboardThemeStudioActivity extends Activity {
         } catch (IOException | SecurityException exception) {
             showMessage(exception.getMessage());
         }
+    }
+
+    private boolean iconPacksEnabled() {
+        android.content.SharedPreferences preferences = GlideTrailPreferences.getPrefs(this);
+        return preferences != null &&
+            preferences.getBoolean(KeyboardIconPackRuntime.PREF_ENABLED, false);
     }
 
     private void importTheme(Uri uri) {

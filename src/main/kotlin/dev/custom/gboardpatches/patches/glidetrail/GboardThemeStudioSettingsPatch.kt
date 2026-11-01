@@ -26,6 +26,7 @@ val gboardThemeStudioSettingsPatch = resourcePatch(
     execute {
         val settings = document(THEME_STUDIO_SETTINGS_XML)
         try {
+            applyKeyboardIconPackSettings(settings)
             addThemeStudioPreference(settings)
         } finally {
             settings.close()
@@ -34,6 +35,7 @@ val gboardThemeStudioSettingsPatch = resourcePatch(
         val manifest = document(THEME_STUDIO_MANIFEST)
         try {
             addThemeStudioActivity(manifest)
+            addKeyboardIconImportActivity(manifest)
         } finally {
             manifest.close()
         }

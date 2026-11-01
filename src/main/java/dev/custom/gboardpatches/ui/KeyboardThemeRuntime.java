@@ -96,6 +96,7 @@ public final class KeyboardThemeRuntime {
             String lower = description.toLowerCase(java.util.Locale.ROOT);
             boolean enter = keyView.getClass().getName().contains("EnterSoftKeyView") ||
                 lower.contains("enter") || lower.contains("return");
+            boolean spacebar = "key.space".equals(KeyboardIconPackRuntime.resolveSlot(keyView, softKeyDef));
             boolean modifier = !enter && (lower.contains("shift") || lower.contains("delete") ||
                 lower.contains("backspace") || lower.contains("symbol") || lower.contains("language") ||
                 lower.contains("globe") || lower.contains("emoji") || lower.contains("voice"));
@@ -105,9 +106,11 @@ public final class KeyboardThemeRuntime {
             Map<String, Object> keyStyle = ThemeDocument.object(keyStyles.get(keySlot));
             int defaultText = color(theme, "keyText", 0xFFE9E9EE);
             int keyText = enter ? color(theme, "enterKeyText", defaultText)
+                : spacebar ? color(theme, "spacebarText", defaultText)
                 : modifier ? color(theme, "modifierKeyText", defaultText)
                 : defaultText;
             int background = enter ? color(theme, "enterKeyBackground", 0xFF4C8DF6)
+                : spacebar ? color(theme, "spacebarBackground", color(theme, "keyBackground", 0xFF303338))
                 : modifier ? color(theme, "modifierKeyBackground", 0xFF222428)
                 : color(theme, "keyBackground", 0xFF303338);
             int pressed = color(theme, "pressedKeyBackground", blend(background, color(theme, "accent", 0xFF8AB4F8)));

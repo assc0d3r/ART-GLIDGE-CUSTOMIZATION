@@ -228,8 +228,7 @@ public final class KeyboardIconPackRuntime {
             }
             BITMAP_CACHE.put(cacheKey, bitmap);
         }
-        View iconView = imageViewId == 0 ? null : softKeyView.findViewById(imageViewId);
-        if (!(iconView instanceof ImageView)) iconView = findIconImageView(softKeyView);
+        View iconView = findIconImageView(softKeyView, softKeyDef, imageViewId);
         if (iconView instanceof ImageView) {
             ImageView image = (ImageView) iconView;
             if (image.getDrawable() instanceof BitmapDrawable &&
@@ -249,7 +248,23 @@ public final class KeyboardIconPackRuntime {
         applyIcon(softKeyView, softKeyDef, 0);
     }
 
-    private static ImageView findIconImageView(View view) {
+    private static ImageView findIconImageView(View view, Object softKeyDef, int fallbackId) {
+        Object locations = readField(softKeyDef, "l");
+        if (locations instanceof int[]) {
+            for (int id : (int[]) locations) {
+                if (id == 0) continue;
+                View candidate = view.findViewById(id);
+                if (candidate instanceof ImageView) return (ImageView) candidate;
+            }
+        }
+        if (fallbackId != 0) {
+            View candidate = view.findViewById(fallbackId);
+            if (candidate instanceof ImageView) return (ImageView) candidate;
+        }
+        return findVisibleIconImageView(view);
+    }
+
+    private static ImageView findVisibleIconImageView(View view) {
         if (view instanceof ImageView) {
             ImageView image = (ImageView) view;
             return image.getVisibility() == View.VISIBLE ? image : null;
@@ -258,7 +273,7 @@ public final class KeyboardIconPackRuntime {
         android.view.ViewGroup group = (android.view.ViewGroup) view;
         ImageView visibleImage = null;
         for (int index = 0; index < group.getChildCount(); index++) {
-            ImageView image = findIconImageView(group.getChildAt(index));
+            ImageView image = findVisibleIconImageView(group.getChildAt(index));
             if (image == null) continue;
             if (image.getDrawable() != null) return image;
             if (visibleImage == null) visibleImage = image;
@@ -749,6 +764,7 @@ public final class KeyboardIconPackRuntime {
                 if (containsAny(description, "shift on", "shift_on")) return "key.shift_on";
                 return "key.shift";
             case 61: return "key.tab";
+            case 62: return "key.space";
             case 66:
                 if (containsAny(description, "search")) return "key.enter_search";
                 if (containsAny(description, "send")) return "key.enter_send";

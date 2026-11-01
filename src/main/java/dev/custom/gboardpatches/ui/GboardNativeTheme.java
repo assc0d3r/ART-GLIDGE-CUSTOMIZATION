@@ -182,12 +182,16 @@ final class GboardNativeTheme {
         int text = ThemeDocument.color(theme, "keyText", 0xFFE9E9EE);
         int enter = ThemeDocument.color(theme, "enterKeyBackground", 0xFF4C8DF6);
         int modifier = ThemeDocument.color(theme, "modifierKeyBackground", key);
+        int spacebar = ThemeDocument.color(theme, "spacebarBackground", key);
+        int spacebarText = ThemeDocument.color(theme, "spacebarText", text);
         return "@def color_set_a1 " + cssColor(board) + ";\n"
             + "@def color_set_a2 " + cssColor(key) + ";\n"
             + "@def color_set_a3 " + cssColor(pressed) + ";\n"
             + "@def color_set_a4 " + cssColor(text) + ";\n"
             + "@def color_set_a5 " + cssColor(enter) + ";\n"
-            + "@def color_set_a6 " + cssColor(modifier) + ";\n";
+            + "@def color_set_a6 " + cssColor(modifier) + ";\n"
+            + "@def color_set_a7 " + cssColor(spacebar) + ";\n"
+            + "@def color_set_a8 " + cssColor(spacebarText) + ";\n";
     }
 
     private static String stylesheet(Map<String, Object> theme) {
@@ -206,8 +210,10 @@ final class GboardNativeTheme {
             + "background_color: @color_set_a5; }\n"
             + ".keytop.for-action-key:pressed, .keytop.for-action-key-holder:pressed { "
             + "background_color: @color_set_a3; }\n"
+            + ".keytop.for-space-key { background_color: @color_set_a7; }\n"
             + ".label, .icon, .label.for-function-key, .icon.for-function-key, "
-            + ".label.for-space-key { color: @color_set_a4; }\n"
+            + ".label { color: @color_set_a4; }\n"
+            + ".label.for-space-key, .icon.for-space-key { color: @color_set_a8; }\n"
             + ".keytop.for-modifier-key { background_color: @color_set_a6; }\n";
     }
 

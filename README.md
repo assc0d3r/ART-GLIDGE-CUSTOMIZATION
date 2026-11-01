@@ -6,9 +6,9 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
   duration, width, and point retention.
 - **Multilingual Suggestion:** optionally promote the first suggestion written in a different
   Unicode script beside Gboard's top candidate.
-- **Keyboard Icon Packs:** import raster icons from a WMKeyboard `.wmicons` or ZIP pack and use
-  matching icons for supported Gboard keys and toolbar buttons. The runtime honors Gboard's
-  persistent switch state and uses key metadata and accessibility labels to find supported slots.
+- **Keyboard Icon Packs:** apply imported WMKeyboard `.wmicons` or ZIP icons to supported Gboard
+  keys and toolbar buttons. Import and enable packs from Theme Studio; selecting this patch also
+  enables Theme Studio.
 - **Gboard Theme Studio:** create, edit, duplicate, import, and export themes; edit key/board
   colors, key shapes, corner radius, and theme-family looks. The editor also offers image and
   texture backgrounds, wallpaper-following colors, animation, toolbar/popup styling, per-key
@@ -33,20 +33,22 @@ English and Hinglish), and does not rotate between language models.
 
 The icon-pack importer accepts `pack.json` version 1 with PNG, WebP, JPEG, or GIF icons. It validates
 the archive and image dimensions before storing icons in Gboard's private app storage. SVG icons and
-slots that cannot be mapped to Gboard metadata are not applied. The enable switch is mirrored from
-Gboard's preference listener so its runtime state stays aligned with Gboard Settings. The icon patch
-is also experimental: Gboard changes its internal key rendering and settings structures between
-releases, so an unpinned target does not guarantee every version will patch or expose every icon.
+slots that cannot be mapped to Gboard metadata are not applied. Packs are imported and enabled from
+Theme Studio, avoiding a duplicate icon-pack category in Glide typing settings. The icon patch is
+experimental: Gboard changes its internal key rendering between releases, so an unpinned target does
+not guarantee every version will patch or expose every icon.
 
 Theme Studio imports and exports WMKeyboard `.wmtheme.json` files while preserving unrecognized
 fields, and supports up to 13 looks and undo/redo. Applying a theme also creates a Gboard-native
 CSS theme for the base colors and key shape; the runtime hook applies the additional editor styles
-to Gboard views. Imported icon packs remain in the separate Keyboard Icon Packs setting and are
-not embedded in theme exports. The runtime depends on Gboard's internal `SoftKeyView` render method
+to Gboard views. Imported icon packs are managed in Theme Studio and are not embedded in theme
+exports. Modifier-key and spacebar background/text colors can be edited separately, and the spacebar
+is available in per-key styling. The runtime depends on Gboard's internal `SoftKeyView` render method
 and view-tree naming, so extended styling is experimental, may not cover every surface, and is not
-guaranteed to work with every Gboard version. Native archive validation currently uses the Gboard
-18.5.4 validator; other Gboard versions may not expose that validator and will receive an explicit
-activation error. The default/system selection restores captured view styling and removes the
+guaranteed to work with every Gboard version. Native archive validation depends on a validator
+exposed by the installed Gboard build; unsupported builds receive an explicit activation error. The
+patch and generated APK were smoke-tested against Gboard 18.5.6, but visual behavior still requires
+device verification. The default/system selection restores captured view styling and removes the
 custom native theme setting.
 
 ## Use in Morphe
@@ -55,13 +57,13 @@ custom native theme setting.
    `https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION`
 2. Select Gboard in the Patcher and enable the desired customization patch.
 3. Apply the patch and install the generated APK.
-4. Configure the relevant option in Gboard Settings. For icon packs, open **Keyboard Icon Packs**
-   and import the `.wmicons`/ZIP file; a successful import enables replacement for supported keys.
+4. Open **Gboard Theme Studio** from Gboard Settings. Import a `.wmicons`/ZIP pack there, enable
+   supported icon replacement, and customize modifier/spacebar colors in the theme editor.
 
 ## Build
 
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.16.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.17.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.
