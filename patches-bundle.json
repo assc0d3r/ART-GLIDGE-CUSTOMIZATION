@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-01T13:35:08+05:30",
-  "description": "Morphe patches for Gboard glide trail customization, script-aware multilingual suggestions, Theme Studio-managed WMKeyboard icon packs and spacebar styling, and AMOLED settings.",
-  "download_url": "https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/releases/download/v1.0.17/patches-1.0.17.mpp",
+  "created_at": "2026-11-01T18:09:00+05:30",
+  "description": "Morphe patches for Gboard customization, including opt-in spacebar cursor controls, C/P/U/R gesture drawing, delete gestures, snippets, and macros.",
+  "download_url": "https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/releases/download/v1.0.20/patches-1.0.20.mpp",
   "signature_download_url": "",
-  "version": "1.0.17"
+  "version": "1.0.20"
 }

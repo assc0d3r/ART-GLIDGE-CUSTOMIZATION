@@ -79,6 +79,15 @@ jobs:
           - Patch and sign successfully against Gboard 18.5.6.993608717-release-arm64-v8a; visual
             rendering still requires device verification and compatibility is not guaranteed for
             other Gboard versions.
+          - Add opt-in XGesture typing controls: inward keyboard-side swipes delete the previous
+            word or paste plain text; holding a bottom corner opens cursor and text-editing actions.
+            Disabled by default; this does not add system-edge, back-tap, shake, or floating-overlay
+            gestures and requires device testing on each Gboard build.
+          - Expand XGesture with rendered spacebar/delete key gestures and user-managed @snippets
+            and macros. These depend on Gboard's internal rendered-key metadata and need device
+            verification on each Gboard build.
+          - Add optional single-stroke spacebar gesture drawing: C copies, P pastes, U undoes, and
+            R redoes. Unrecognized strokes fall back to cursor movement; verify recognition on device.
           - Fix native stylesheet registration so generated theme colors are loaded by Gboard, and
             enable imported icon packs while improving icon visibility and Logcat diagnostics.
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.

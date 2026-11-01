@@ -18,6 +18,12 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
 - **AMOLED Gboard Settings:** apply black backgrounds and legible text/control colors to
   AndroidX preference rows. Because the hook targets the shared preference binder, settings
   added by other patches are styled automatically when Gboard displays them.
+- **XGesture Typing Controls:** optionally hold-drag the spacebar to move the cursor, use a
+  two-finger spacebar drag to select text, swipe the delete key to remove a word or sentence,
+  double-tap delete for undo, or hold delete for accelerated removal. Keyboard-edge swipes and
+  bottom-corner editing tools remain available. Enable the separate spacebar drawing option to
+  draw C/P/U/R for copy/paste/undo/redo; unrecognized strokes fall back to cursor movement. Define
+  `@` snippets and macros from the corner menu. Gestures are disabled by default.
 
 All patches are exposed as experimental, version-unpinned Gboard targets. They still rely on
 Gboard's internal classes and settings resources; versions that change those structures may not
@@ -51,6 +57,17 @@ patch and generated APK were smoke-tested against Gboard 18.5.6, but visual beha
 device verification. The default/system selection restores captured view styling and removes the
 custom native theme setting.
 
+XGesture uses Gboard's keyboard-view and rendered-key hooks plus Android's active input connection.
+It is version-sensitive and experimental. Snippets expand after their final trigger character;
+macros support `paste`, `undo`, `redo`, `deleteWord`, `left`, `right`, `selectAll`, `copy`, and
+`insertText:text` actions. Spacebar gesture drawing is separately configurable and recognizes
+single-stroke C/P/U/R shapes after a hold; other strokes fall back to cursor movement. Recognition
+depends on the path fitting within the spacebar area and needs device verification. Entries are
+stored in Gboard preferences and are not encrypted; do not store passwords or active one-time
+codes. It does not install system-edge, back-tap, shake, or floating-overlay handlers. Enable it
+only if the hooks are available, then verify behavior on the target Gboard build and in the intended
+input fields.
+
 ## Use in Morphe
 
 1. Add this repository as a Morphe source:
@@ -59,11 +76,14 @@ custom native theme setting.
 3. Apply the patch and install the generated APK.
 4. Open **Gboard Theme Studio** from Gboard Settings. Import a `.wmicons`/ZIP pack there, enable
    supported icon replacement, and customize modifier/spacebar colors in the theme editor.
+5. To try XGesture, enable **Enable keyboard-local gestures** in Gboard's gesture settings, and
+   enable **Enable spacebar gesture drawing** for C/P/U/R. Hold a bottom corner to manage
+   snippets/macros; type a saved `@trigger` to expand it.
 
 ## Build
 
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.17.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.20.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.
