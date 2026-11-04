@@ -25,6 +25,9 @@ import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -43,7 +46,10 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private static final int REQUEST_KEY_TEXTURE = 7414;
     private static final int REQUEST_STICKER_IMAGE = 7415;
     private static final int REQUEST_KEY_STYLE_IMAGE = 7416;
+    private static final int REQUEST_KEY_ICON_IMAGE = 7417;
+    private static final int REQUEST_EXPORT_NATIVE_THEME = 7418;
     private static final int MAX_THEME_IMAGE_BYTES = 4 * 1024 * 1024;
+    private static final int MAX_THEME_PACKAGE_BYTES = 8 * 1024 * 1024;
     private static final int MAX_HISTORY = 30;
     private static final String[] EDITABLE_COLORS = {
         "boardBackground", "keyBackground", "keyText", "modifierKeyBackground",
@@ -75,6 +81,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private LinearLayout content;
     private Map<String, Object> theme;
     private Map<String, Object> editedLook;
+    private Map<String, Object> nativeExportTheme;
     private int selectedVariant = -1;
     private final List<String> history = new ArrayList<>();
     private int historyPosition = -1;
@@ -82,6 +89,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private boolean editorMode;
     private boolean launchedForEdit;
     private String pendingKeyStyleSlot;
+    private String pendingKeyIconSlot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,7 +125,9 @@ public final class KeyboardThemeStudioActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null || data.getData() == null) {
-            if (requestCode == REQUEST_IMPORT_THEME || requestCode == REQUEST_EXPORT_THEME) showManager();
+            if (requestCode == REQUEST_EXPORT_NATIVE_THEME) nativeExportTheme = null;
+            if (requestCode == REQUEST_IMPORT_THEME || requestCode == REQUEST_EXPORT_THEME ||
+                requestCode == REQUEST_EXPORT_NATIVE_THEME) showManager();
             return;
         }
         Uri uri = data.getData();
@@ -125,6 +135,8 @@ public final class KeyboardThemeStudioActivity extends Activity {
             importTheme(uri);
         } else if (requestCode == REQUEST_EXPORT_THEME) {
             exportTheme(uri);
+        } else if (requestCode == REQUEST_EXPORT_NATIVE_THEME) {
+            exportNativeTheme(uri);
         } else if (requestCode == REQUEST_IMPORT_ICONS) {
             importIcons(uri);
         } else if (requestCode == REQUEST_BACKGROUND_IMAGE) {
@@ -135,27 +147,29 @@ public final class KeyboardThemeStudioActivity extends Activity {
             importSticker(uri);
         } else if (requestCode == REQUEST_KEY_STYLE_IMAGE) {
             importKeyStyleImage(uri);
+        } else if (requestCode == REQUEST_KEY_ICON_IMAGE) {
+            importKeyIconImage(uri);
         }
     }
 
     private void showManager() {
         editorMode = false;
-        setTitle("Gboard Theme Studio");
+        setTitle("Gboard Theme Builder");
         ScrollView scroll = new ScrollView(this);
         content = column();
         scroll.addView(content);
-        TextView heading = text("Gboard Theme Studio", 24);
+        TextView heading = text("Gboard Theme Builder", 24);
         content.addView(heading);
         content.addView(text(
-            "Create themes and apply colors through Gboard's native ZIP-theme system. Theme activation and per-key rendering depend on Gboard internals and are not verified on every version.",
+            "Build native Gboard themes from palettes or compatible third-party packages. Customize each key's appearance and icon; Gboard still controls the key layout and actions.",
             14
         ));
 
-        Button create = button("Create theme");
+        Button create = button("Create native theme");
         create.setOnClickListener(view -> createTheme("Ocean"));
         content.addView(create);
 
-        Button importButton = button("Import .wmtheme.json");
+        Button importButton = button("Import theme package (.pack, .zip, or .wmtheme.json)");
         importButton.setOnClickListener(view -> startImport());
         content.addView(importButton);
 
@@ -198,6 +212,9 @@ public final class KeyboardThemeStudioActivity extends Activity {
             actions.addView(duplicate);
             actions.addView(delete);
             card.addView(actions);
+            Button nativeExport = button("Export native Gboard ZIP");
+            nativeExport.setOnClickListener(view -> startNativeExport(savedTheme));
+            card.addView(nativeExport);
             content.addView(card);
         }
         setContentView(scroll);
@@ -569,6 +586,8 @@ public final class KeyboardThemeStudioActivity extends Activity {
         if (!(current.get("keyOpacity") instanceof Number)) keyOpacity.setText("");
         EditText iconOpacity = numberField(ThemeDocument.number(current, "iconOpacity", 100));
         if (!(current.get("iconOpacity") instanceof Number)) iconOpacity.setText("");
+        EditText textureOpacity = numberField(ThemeDocument.number(current, "textureOpacity", 100));
+        if (!(current.get("textureOpacity") instanceof Number)) textureOpacity.setText("");
         form.addView(text("Background color (blank follows theme)", 14));
         form.addView(background);
         form.addView(text("Label color", 14));
@@ -585,6 +604,8 @@ public final class KeyboardThemeStudioActivity extends Activity {
         form.addView(keyOpacity);
         form.addView(text("Icon opacity (0-100%, blank is 100%)", 14));
         form.addView(iconOpacity);
+        form.addView(text("Key texture opacity (0-100%, blank is 100%)", 14));
+        form.addView(textureOpacity);
 
         Spinner shape = new Spinner(this);
         ArrayAdapter<String> shapeAdapter = new ArrayAdapter<>(
@@ -623,8 +644,17 @@ public final class KeyboardThemeStudioActivity extends Activity {
         form.addView(text("Label size in sp (blank follows layout)", 14));
         form.addView(labelSize);
         Button keyImage = smallButton(current.get("imageBase64") == null
-            ? "Add image for this key" : "Replace image for this key");
+            ? "Add key texture" : "Replace key texture");
         form.addView(keyImage);
+        Button keyIcon = smallButton(current.get("keyIconBase64") == null
+            ? "Import icon for this key" : "Replace this key's icon");
+        form.addView(keyIcon);
+        Button removeKeyIcon = current.get("keyIconBase64") == null
+            ? null
+            : smallButton("Remove this key's icon");
+        if (removeKeyIcon != null) {
+            form.addView(removeKeyIcon);
+        }
 
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this)
             .setTitle(existingSlot == null ? "Add per-key style" : keyStyleLabel(existingSlot))
@@ -646,7 +676,8 @@ public final class KeyboardThemeStudioActivity extends Activity {
                     return;
                 }
                 if (!putOptionalPercentage(style, "keyOpacity", keyOpacity.getText().toString()) ||
-                    !putOptionalPercentage(style, "iconOpacity", iconOpacity.getText().toString())) return;
+                    !putOptionalPercentage(style, "iconOpacity", iconOpacity.getText().toString()) ||
+                    !putOptionalPercentage(style, "textureOpacity", textureOpacity.getText().toString())) return;
                 String rawBorderWidth = borderWidth.getText().toString().trim();
                 if (rawBorderWidth.isEmpty()) style.remove("borderWidthDp");
                 else {
@@ -706,6 +737,31 @@ public final class KeyboardThemeStudioActivity extends Activity {
             shownDialog.dismiss();
             startImageImport(REQUEST_KEY_STYLE_IMAGE);
         });
+        keyIcon.setOnClickListener(view -> {
+            pendingKeyIconSlot = existingSlot == null
+                ? KEY_STYLE_SLOTS[target.getSelectedItemPosition()]
+                : existingSlot;
+            shownDialog.dismiss();
+            startImageImport(REQUEST_KEY_ICON_IMAGE);
+        });
+        if (removeKeyIcon != null) {
+            removeKeyIcon.setOnClickListener(view -> {
+                String slot = existingSlot == null
+                    ? KEY_STYLE_SLOTS[target.getSelectedItemPosition()]
+                    : existingSlot;
+                Map<String, Object> style = new java.util.LinkedHashMap<>(
+                    ThemeDocument.object(allStyles.get(slot))
+                );
+                pushHistory();
+                style.remove("keyIconBase64");
+                if (style.isEmpty()) allStyles.remove(slot);
+                else allStyles.put(slot, style);
+                if (allStyles.isEmpty()) editedLook.remove("singleKeyStyles");
+                persistTheme();
+                shownDialog.dismiss();
+                showEditor();
+            });
+        }
     }
 
     private EditText colorField(Map<String, Object> style, String key) {
@@ -755,11 +811,24 @@ public final class KeyboardThemeStudioActivity extends Activity {
         String[] special = {
             "key.enter", "key.enter_search", "key.enter_send", "key.enter_done",
             "key.enter_next", "key.enter_previous", "key.enter_go", "key.shift",
-            "key.shift_on", "key.shift_lock", "key.backspace", "key.forward_delete",
+            "key.shift_on", "key.shift_lock", "key.caps_lock", "key.alt", "key.symbol",
+            "key.backspace", "key.forward_delete", "key.comma", "key.period", "key.grave",
+            "key.minus", "key.equals", "key.left_bracket", "key.right_bracket",
+            "key.backslash", "key.semicolon", "key.apostrophe", "key.slash", "key.at", "key.plus",
             "key.tab", "key.space", "key.globe", "key.input_method_picker", "key.emoji",
             "key.arrow_left", "key.arrow_right", "key.arrow_up", "key.arrow_down"
         };
         slots.addAll(java.util.Arrays.asList(special));
+        String[] toolbar = {
+            "tool.clipboard_search", "tool.paste", "tool.clipboard", "tool.text_edit",
+            "tool.settings", "tool.undo", "tool.redo", "tool.voice", "tool.grammar",
+            "tool.hide_keyboard", "tool.send_files", "tool.translate", "tool.themes",
+            "tool.one_handed", "tool.incognito", "tool.floating", "tool.gif", "tool.emoji",
+            "tool.web_search", "tool.handwriting", "tool.dictionary", "tool.copy", "tool.cut",
+            "chrome.toolbox", "chrome.hide_keys", "chrome.show_keys",
+            "chrome.suggestions_expand", "chrome.search_close"
+        };
+        slots.addAll(java.util.Arrays.asList(toolbar));
         return slots.toArray(new String[0]);
     }
 
@@ -1030,7 +1099,16 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private void startImport() {
         Intent picker = new Intent("android.intent.action.OPEN_DOCUMENT");
         picker.addCategory(Intent.CATEGORY_OPENABLE);
-        picker.setType("application/json");
+        picker.setType("*/*");
+        picker.putExtra(
+            "android.intent.extra.MIME_TYPES",
+            new String[] {
+                "application/json",
+                "application/zip",
+                "application/x-zip-compressed",
+                "application/octet-stream"
+            }
+        );
         try {
             startActivityForResult(picker, REQUEST_IMPORT_THEME);
         } catch (android.content.ActivityNotFoundException exception) {
@@ -1151,6 +1229,33 @@ public final class KeyboardThemeStudioActivity extends Activity {
             showMessage("Key image added.");
         } catch (IOException | SecurityException exception) {
             pendingKeyStyleSlot = null;
+            showMessage(exception.getMessage());
+        }
+    }
+
+    private void importKeyIconImage(Uri uri) {
+        if (pendingKeyIconSlot == null) {
+            showMessage("No key is selected for the icon.");
+            return;
+        }
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            if (input == null) throw new IOException("The selected key icon could not be opened.");
+            String image = readImageBase64(input);
+            Map<String, Object> styles = ThemeDocument.object(editedLook.get("singleKeyStyles"));
+            Map<String, Object> style = new java.util.LinkedHashMap<>(
+                ThemeDocument.object(styles.get(pendingKeyIconSlot))
+            );
+            pushHistory();
+            style.put("keyIconBase64", image);
+            styles.put(pendingKeyIconSlot, style);
+            editedLook.put("singleKeyStyles", styles);
+            if (!persistTheme()) return;
+            pendingKeyIconSlot = null;
+            preview.invalidate();
+            showEditor();
+            showMessage("Key icon added.");
+        } catch (IOException | SecurityException exception) {
+            pendingKeyIconSlot = null;
             showMessage(exception.getMessage());
         }
     }
@@ -1292,13 +1397,38 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private void importTheme(Uri uri) {
         try (InputStream input = getContentResolver().openInputStream(uri)) {
             if (input == null) throw new IOException("The selected theme file could not be opened.");
-            Map<String, Object> imported = ThemeStore.importTheme(this, ThemeDocument.read(input));
+            byte[] content = readThemePackage(input);
+            int first = 0;
+            while (first < content.length && Character.isWhitespace(content[first])) first++;
+            Map<String, Object> imported;
+            if (first < content.length && content[first] == '{') {
+                imported = ThemeStore.importTheme(
+                    this,
+                    ThemeDocument.read(new ByteArrayInputStream(content))
+                );
+            } else {
+                imported = ThemeStore.importPackage(this, content);
+            }
             showMessage("Imported and applied " + ThemeDocument.string(imported, "name", "theme") + ".");
             showManager();
         } catch (IOException | SecurityException exception) {
             showMessage(exception.getMessage());
             showManager();
         }
+    }
+
+    private byte[] readThemePackage(InputStream input) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            if (output.size() + read > MAX_THEME_PACKAGE_BYTES) {
+                throw new IOException("Theme packages must be 8 MiB or smaller.");
+            }
+            output.write(buffer, 0, read);
+        }
+        if (output.size() == 0) throw new IOException("The selected theme file is empty.");
+        return output.toByteArray();
     }
 
     private void startExport(Map<String, Object> selected) {
@@ -1323,6 +1453,55 @@ public final class KeyboardThemeStudioActivity extends Activity {
             showMessage("Theme exported.");
         } catch (IOException | SecurityException exception) {
             showMessage(exception.getMessage());
+        }
+    }
+
+    private void startNativeExport(Map<String, Object> selected) {
+        nativeExportTheme = selected;
+        Intent create = new Intent("android.intent.action.CREATE_DOCUMENT");
+        create.addCategory(Intent.CATEGORY_OPENABLE);
+        create.setType("application/zip");
+        String name = ThemeDocument.string(selected, "name", "Gboard theme")
+            .replaceAll("[\\\\/:*?\"<>|]", "_");
+        create.putExtra("android.intent.extra.TITLE", name + ".zip");
+        try {
+            startActivityForResult(create, REQUEST_EXPORT_NATIVE_THEME);
+        } catch (android.content.ActivityNotFoundException exception) {
+            nativeExportTheme = null;
+            showMessage("No file picker is available.");
+        }
+    }
+
+    private void exportNativeTheme(Uri uri) {
+        if (nativeExportTheme == null) {
+            showMessage("No theme is selected for export.");
+            return;
+        }
+        File archive = null;
+        try {
+            archive = File.createTempFile("gboard-theme-", ".zip", getCacheDir());
+            GboardNativeTheme.writeThemeArchive(
+                archive,
+                nativeExportTheme,
+                "export_" + java.util.UUID.randomUUID().toString().replace("-", "")
+            );
+            try (
+                InputStream input = new FileInputStream(archive);
+                OutputStream output = getContentResolver().openOutputStream(uri)
+            ) {
+                if (output == null) throw new IOException("The native theme export could not be opened.");
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+            }
+            showMessage("Native Gboard theme ZIP exported.");
+        } catch (IOException | SecurityException exception) {
+            showMessage(exception.getMessage());
+        } finally {
+            nativeExportTheme = null;
+            if (archive != null && archive.exists() && !archive.delete()) {
+                android.util.Log.w("GboardThemeStudio", "Temporary native theme archive could not be removed.");
+            }
         }
     }
 
@@ -1573,10 +1752,13 @@ public final class KeyboardThemeStudioActivity extends Activity {
             Map<String, Object> style,
             int keyOpacity
         ) {
-            android.graphics.Bitmap bitmap = KeyboardIconPackRuntime.previewIcon(
-                KeyboardThemeStudioActivity.this,
-                slot
-            );
+            android.graphics.Bitmap bitmap = KeyboardThemeRuntime.previewBitmap(style, "keyIconBase64");
+            if (bitmap == null) {
+                bitmap = KeyboardIconPackRuntime.previewIcon(
+                    KeyboardThemeStudioActivity.this,
+                    slot
+                );
+            }
             if (bitmap != null && !bitmap.isRecycled()) {
                 RectF imageBounds = new RectF(
                     bounds.left + bounds.width() * 0.2f,

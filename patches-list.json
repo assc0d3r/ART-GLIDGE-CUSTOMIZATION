@@ -1,5 +1,5 @@
 {
-  "version": "1.0.22",
+  "version": "1.0.23",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -17,14 +17,14 @@
     },
     {
       "name": "Keyboard Icon Packs",
-      "description": "Enable WMKeyboard icon-pack replacement from Theme Studio; requires Gboard Theme Studio to import and manage packs.",
+      "description": "Enable imported icon packs and per-key icon replacement; requires Gboard Theme Builder.",
       "use": true,
-      "dependencies": ["Gboard Theme Studio"],
+      "dependencies": ["Gboard Theme Builder"],
       "options": []
     },
     {
-      "name": "Gboard Theme Studio",
-      "description": "Create WMKeyboard-compatible themes, render imported icons directly from Theme Studio, and apply experimental runtime styling for backgrounds, per-key overrides, stickers, and surfaces.",
+      "name": "Gboard Theme Builder",
+      "description": "Create native Gboard themes, import compatible .pack/.zip/.wmtheme.json files, and customize per-key visuals and icons.",
       "use": true,
       "dependencies": [],
       "options": []

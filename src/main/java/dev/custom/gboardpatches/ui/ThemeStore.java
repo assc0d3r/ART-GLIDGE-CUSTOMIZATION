@@ -159,6 +159,14 @@ final class ThemeStore {
         return theme;
     }
 
+    static Map<String, Object> importPackage(Context context, byte[] packageBytes) throws IOException {
+        Map<String, Object> theme = GboardThemePackage.importPackage(packageBytes);
+        theme.put("id", "custom_" + UUID.randomUUID().toString().replace("-", ""));
+        save(context, theme);
+        setActive(context, ThemeDocument.string(theme, "id", null));
+        return theme;
+    }
+
     static Map<String, Object> duplicate(Context context, Map<String, Object> source) throws IOException {
         Map<String, Object> copy = ThemeDocument.copy(source);
         copy.put("id", "custom_" + UUID.randomUUID().toString().replace("-", ""));

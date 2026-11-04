@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-01T19:10:00+05:30",
-  "description": "Morphe patches for Gboard customization, including WMKeyboard icon packs and Theme Studio.",
-  "download_url": "https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/releases/download/v1.0.22/patches-1.0.22.mpp",
+  "created_at": "2026-11-04T17:36:00+05:30",
+  "description": "Morphe patches for native Gboard theme creation, compatible theme-package imports, per-key styling, and icon replacement.",
+  "download_url": "https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/releases/download/v1.0.23/patches-1.0.23.mpp",
   "signature_download_url": "",
-  "version": "1.0.22"
+  "version": "1.0.23"
 }

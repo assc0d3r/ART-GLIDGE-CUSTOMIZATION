@@ -23,7 +23,7 @@ private fun isVoidReturn(opcode: Opcode): Boolean =
 
 val keyboardIconPackPatch = bytecodePatch(
     name = "Keyboard Icon Packs",
-    description = "Enables WMKeyboard icon replacement managed from Gboard Theme Studio.",
+    description = "Enables imported icon packs alongside per-key icons managed by Gboard Theme Builder.",
     default = true
 ) {
     compatibleWith(

@@ -26,8 +26,8 @@ private fun isVoidReturn(opcode: Opcode): Boolean =
         opcode == Opcode.RETURN_VOID_NO_BARRIER
 
 val gboardThemeStudioPatch = bytecodePatch(
-    name = "Gboard Theme Studio",
-    description = "Adds Theme Studio, icon rendering, and experimental runtime styling for advanced Gboard themes.",
+    name = "Gboard Theme Builder",
+    description = "Creates native Gboard themes, imports compatible theme packages, and customizes keys and icons.",
     default = true
 ) {
     compatibleWith(

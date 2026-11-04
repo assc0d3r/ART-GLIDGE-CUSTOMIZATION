@@ -93,18 +93,20 @@ public final class KeyboardThemeRuntime {
                 applyBoard(root);
                 applySurfaceStyles(root, theme);
             }
+            String keySlot = KeyboardIconPackRuntime.resolveSlot(keyView, softKeyDef);
             String description = keyView.getContentDescription() == null
                 ? String.valueOf(softKeyDef)
                 : keyView.getContentDescription().toString();
             String lower = description.toLowerCase(java.util.Locale.ROOT);
-            boolean enter = keyView.getClass().getName().contains("EnterSoftKeyView") ||
+            boolean enter = (keySlot != null && keySlot.startsWith("key.enter")) ||
+                keyView.getClass().getName().contains("EnterSoftKeyView") ||
                 lower.contains("enter") || lower.contains("return");
-            boolean spacebar = "key.space".equals(KeyboardIconPackRuntime.resolveSlot(keyView, softKeyDef));
-            boolean modifier = !enter && (lower.contains("shift") || lower.contains("delete") ||
+            boolean spacebar = "key.space".equals(keySlot);
+            boolean modifier = !enter && !spacebar && (isModifierSlot(keySlot) ||
+                lower.contains("shift") || lower.contains("delete") ||
                 lower.contains("backspace") || lower.contains("symbol") || lower.contains("language") ||
                 lower.contains("globe") || lower.contains("emoji") || lower.contains("voice"));
 
-            String keySlot = KeyboardIconPackRuntime.resolveSlot(keyView, softKeyDef);
             Map<String, Object> keyStyles = ThemeDocument.object(theme.get("singleKeyStyles"));
             Map<String, Object> keyStyle = ThemeDocument.object(keyStyles.get(keySlot));
             captureOriginalAlpha(keyView);
@@ -145,7 +147,11 @@ public final class KeyboardThemeRuntime {
             float gradientAngle = (float) ThemeDocument.number(gradient, "angleDeg", 45);
             Bitmap texture = bitmap(theme, "keyTextureBase64");
             if (texture == null) texture = bitmap(keyStyle, "imageBase64");
-            int textureOpacity = (int) ThemeDocument.number(theme, "keyTextureOpacity", 100);
+            int textureOpacity = (int) ThemeDocument.number(
+                keyStyle,
+                "textureOpacity",
+                ThemeDocument.number(theme, "keyTextureOpacity", 100)
+            );
 
             captureOriginalBackground(keyView);
             keyView.setBackground(new ThemeKeyDrawable(
@@ -186,6 +192,26 @@ public final class KeyboardThemeRuntime {
         }
     }
 
+    public static boolean applyCustomKeyIcon(View keyView, String keySlot, ImageView image) {
+        if (keyView == null || image == null || keySlot == null) return false;
+        try {
+            Map<String, Object> theme = theme(keyView.getContext());
+            Map<String, Object> styles = ThemeDocument.object(theme.get("singleKeyStyles"));
+            Map<String, Object> style = ThemeDocument.object(styles.get(keySlot));
+            Bitmap icon = bitmap(style, "keyIconBase64");
+            if (icon == null || icon.isRecycled()) return false;
+            image.setColorFilter((android.graphics.ColorFilter) null);
+            setImageTintList(image, null);
+            image.setImageBitmap(icon);
+            image.setVisibility(View.VISIBLE);
+            applyIconStyle(image, style);
+            return true;
+        } catch (RuntimeException exception) {
+            Log.w(TAG, "Unable to apply the selected per-key icon.", exception);
+            return false;
+        }
+    }
+
     private static void applyKeyIconStyles(View view, Map<String, Object> style) {
         if (view instanceof ImageView) applyIconStyle((ImageView) view, style);
         if (!(view instanceof ViewGroup)) return;
@@ -222,6 +248,17 @@ public final class KeyboardThemeRuntime {
 
     private static float percent(long value) {
         return Math.max(0, Math.min(100, value)) / 100f;
+    }
+
+    private static boolean isModifierSlot(String slot) {
+        return "key.shift".equals(slot) || "key.shift_on".equals(slot) ||
+            "key.shift_lock".equals(slot) || "key.caps_lock".equals(slot) ||
+            "key.alt".equals(slot) || "key.symbol".equals(slot) ||
+            "key.backspace".equals(slot) || "key.forward_delete".equals(slot) ||
+            "key.tab".equals(slot) || "key.globe".equals(slot) ||
+            "key.input_method_picker".equals(slot) || "key.emoji".equals(slot) ||
+            "key.arrow_left".equals(slot) || "key.arrow_right".equals(slot) ||
+            "key.arrow_up".equals(slot) || "key.arrow_down".equals(slot);
     }
 
     private static boolean hasColorValue(Map<String, Object> values, String key) {

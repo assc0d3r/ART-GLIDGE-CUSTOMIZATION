@@ -13,7 +13,7 @@ private const val THEME_STUDIO_ACTIVITY =
     "dev.custom.gboardpatches.ui.KeyboardThemeStudioActivity"
 
 val gboardThemeStudioSettingsPatch = resourcePatch(
-    description = "Adds the Gboard Theme Studio entry and activity."
+    description = "Adds the native Gboard Theme Builder entry and activity."
 ) {
     compatibleWith(
         Compatibility(
@@ -52,11 +52,11 @@ private fun addThemeStudioPreference(document: Document) {
     category.appendChild(
         document.createElement("Preference").apply {
             setAttributeNS(THEME_STUDIO_ANDROID_NS, "android:persistent", "false")
-            setAttributeNS(THEME_STUDIO_ANDROID_NS, "android:title", "Open Theme Studio")
+            setAttributeNS(THEME_STUDIO_ANDROID_NS, "android:title", "Open Theme Builder")
             setAttributeNS(
                 THEME_STUDIO_ANDROID_NS,
                 "android:summary",
-                "Create, edit, import, and export Gboard themes",
+                "Create native themes, import compatible packages, and customize keys",
             )
             setAttributeNS(THEME_STUDIO_ANDROID_NS, "android:key", "pref_key_gboard_theme_studio")
         }

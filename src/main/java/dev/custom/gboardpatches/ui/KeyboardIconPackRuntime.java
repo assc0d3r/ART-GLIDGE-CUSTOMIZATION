@@ -194,10 +194,6 @@ public final class KeyboardIconPackRuntime {
         if (softKeyView == null || softKeyDef == null) return;
         logOnce("render-hook", "The Gboard key icon render hook is active.");
         Context context = softKeyView.getContext();
-        if (!isEnabled(context)) {
-            logOnce("disabled", "Icon replacement is disabled in Gboard Settings.");
-            return;
-        }
         String slot = resolveSlot(softKeyView, softKeyDef);
         if (slot == null) {
             String description = softKeyView.getContentDescription() == null
@@ -208,6 +204,17 @@ public final class KeyboardIconPackRuntime {
                 "No icon slot matched Gboard key; description=" + description
                     + ", keyCodes=" + findKeyCodes(softKeyDef)
             );
+            return;
+        }
+
+        View iconView = findIconImageView(softKeyView, softKeyDef, imageViewId);
+        if (iconView instanceof ImageView &&
+            KeyboardThemeRuntime.applyCustomKeyIcon(softKeyView, slot, (ImageView) iconView)) {
+            logOnce("custom:" + slot, "Applied a Theme Studio icon to " + slot + ".");
+            return;
+        }
+        if (!isEnabled(context)) {
+            logOnce("disabled", "Icon replacement is disabled in Gboard Settings.");
             return;
         }
 
@@ -228,7 +235,6 @@ public final class KeyboardIconPackRuntime {
             }
             BITMAP_CACHE.put(cacheKey, bitmap);
         }
-        View iconView = findIconImageView(softKeyView, softKeyDef, imageViewId);
         if (iconView instanceof ImageView) {
             ImageView image = (ImageView) iconView;
             if (image.getDrawable() instanceof BitmapDrawable &&
@@ -251,6 +257,10 @@ public final class KeyboardIconPackRuntime {
     }
 
     private static ImageView findIconImageView(View view, Object softKeyDef, int fallbackId) {
+        if (fallbackId != 0) {
+            View candidate = view.findViewById(fallbackId);
+            if (candidate instanceof ImageView) return (ImageView) candidate;
+        }
         Object locations = readField(softKeyDef, "l");
         if (locations instanceof int[]) {
             for (int id : (int[]) locations) {
@@ -258,10 +268,6 @@ public final class KeyboardIconPackRuntime {
                 View candidate = view.findViewById(id);
                 if (candidate instanceof ImageView) return (ImageView) candidate;
             }
-        }
-        if (fallbackId != 0) {
-            View candidate = view.findViewById(fallbackId);
-            if (candidate instanceof ImageView) return (ImageView) candidate;
         }
         return findVisibleIconImageView(view);
     }
@@ -760,6 +766,10 @@ public final class KeyboardIconPackRuntime {
             case 20: return "key.arrow_down";
             case 21: return "key.arrow_left";
             case 22: return "key.arrow_right";
+            case 55: return "key.comma";
+            case 56: return "key.period";
+            case 57:
+            case 58: return "key.alt";
             case 59:
             case 60:
                 if (containsAny(description, "caps lock", "shift lock", "shift_lock")) return "key.shift_lock";
@@ -767,6 +777,18 @@ public final class KeyboardIconPackRuntime {
                 return "key.shift";
             case 61: return "key.tab";
             case 62: return "key.space";
+            case 63: return "key.symbol";
+            case 68: return "key.grave";
+            case 69: return "key.minus";
+            case 70: return "key.equals";
+            case 71: return "key.left_bracket";
+            case 72: return "key.right_bracket";
+            case 73: return "key.backslash";
+            case 74: return "key.semicolon";
+            case 75: return "key.apostrophe";
+            case 76: return "key.slash";
+            case 77: return "key.at";
+            case 81: return "key.plus";
             case 66:
                 if (containsAny(description, "search")) return "key.enter_search";
                 if (containsAny(description, "send")) return "key.enter_send";

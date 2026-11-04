@@ -62,22 +62,23 @@ jobs:
           - Optionally promote suggestions written in a different Unicode script. This best-effort
             heuristic affects glide and ordinary suggestion rows and cannot distinguish languages
             that use the same script.
-          - Manage WMKeyboard `.wmicons`/ZIP imports and icon replacement from Theme Studio; the
-            separate Keyboard Icon Packs patch depends on Theme Studio. Icon lookup prioritizes
+          - Manage WMKeyboard `.wmicons`/ZIP imports and icon replacement from Theme Builder; the
+            separate Keyboard Icon Packs patch depends on Theme Builder. Icon lookup prioritizes
             Gboard key metadata, then uses a fallback search for a visible key image view. Slots
             without a known Gboard match are left unchanged.
-          - Use Gboard Theme Studio to create/import/export WMKeyboard-compatible JSON themes.
-            Experimental runtime styling adds background images and textures, wallpaper-derived
-            colors, animation, toolbar/popup styling, per-key overrides, opacity, icon tint, and
-            sticker overlays. Visual profiles retain Gboard's key positions and actions.
+          - Replace the legacy theme editor with Gboard Theme Builder. Create native Gboard themes,
+            import RBoard `.pack`, native theme `.zip`, and WMKeyboard `.wmtheme.json` packages,
+            preserve compatible native CSS stylesheets/flavors, and export a native theme ZIP.
+            Edit per-key colors, shapes, textures, opacity, icon tint/custom icons, modifiers, and
+            spacebar appearance. Visual profiles retain Gboard's key positions and actions.
             These hooks depend on Gboard internals and are not guaranteed across versions.
           - Apply a pure-black AMOLED style to AndroidX preference rows across Gboard settings,
             including settings introduced by other patches. Custom screens that do not use
             AndroidX Preference rows are not covered. The row-binding hook tolerates an
             obfuscated binder method name when its PreferenceViewHolder signature remains.
           - Edit modifier-key and spacebar background/text colors, and apply per-key spacebar styles.
-            Imported icon packs are managed in Theme Studio and are not embedded into theme exports.
-            Saved themes can be deleted from Theme Studio; deleting the active theme restores the
+            Imported icon packs are managed in Theme Builder and are not embedded into theme exports.
+            Saved themes can be deleted from Theme Builder; deleting the active theme restores the
             system theme.
           - Remove the experimental XGesture patch and its gesture, drawing, snippet, and macro
             features from the bundle.

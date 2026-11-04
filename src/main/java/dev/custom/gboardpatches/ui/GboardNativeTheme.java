@@ -23,8 +23,9 @@ final class GboardNativeTheme {
     private static final String TAG = "GboardThemeStudio";
     private static final String THEME_PREFERENCE = "additional_keyboard_theme";
     private static final String BORDER_PREFERENCE = "enable_key_border";
-    private static final String VARIABLES_SHEET = "variables.css";
+    private static final String VARIABLES_SHEET = "style_sheet_variables.css";
     private static final String STYLE_SHEET = "style_sheet_md2.css";
+    private static final String OVERRIDE_MARKER = "/* Morphe Theme Studio overrides */";
 
     private GboardNativeTheme() {}
 
@@ -96,6 +97,10 @@ final class GboardNativeTheme {
         if (archive.exists() && !archive.delete()) Log.w(TAG, "An unused native theme archive could not be removed.");
     }
 
+    static void writeThemeArchive(File archive, Map<String, Object> theme, String id) throws IOException {
+        writeTheme(archive, theme, id);
+    }
+
     private static void validateArchive(Context context, File archive) throws IOException {
         try {
             Class<?> validator = Class.forName("rnw", false, context.getClassLoader());
@@ -146,25 +151,58 @@ final class GboardNativeTheme {
     }
 
     private static void writeTheme(File archive, Map<String, Object> theme, String id) throws IOException {
-        Map<String, Object> metadata = new LinkedHashMap<>();
+        Map<String, Object> metadata = new LinkedHashMap<>(
+            ThemeDocument.object(theme.get("nativeThemeMetadata"))
+        );
         metadata.put("format_version", 3);
         metadata.put("id", "morphe_theme_" + id);
         metadata.put("name", ThemeDocument.string(theme, "name", "Gboard Theme"));
         metadata.put("is_light_theme", !Boolean.TRUE.equals(theme.get("dark")));
-        metadata.put("is_redesign_theme", Boolean.TRUE);
-        metadata.put("prefer_key_border", Boolean.FALSE);
-        List<Object> styleSheets = new ArrayList<>();
-        styleSheets.add(VARIABLES_SHEET);
-        styleSheets.add(STYLE_SHEET);
-        metadata.put("style_sheets", styleSheets);
+        if (!metadata.containsKey("is_redesign_theme")) {
+            metadata.put("is_redesign_theme", Boolean.TRUE);
+        }
+        metadata.put("prefer_key_border", Boolean.TRUE.equals(theme.get("prefer_key_border")));
+        Map<String, String> styleSheets = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry :
+            ThemeDocument.object(theme.get("nativeThemeStyleSheets")).entrySet()) {
+            if (entry.getKey().matches("[A-Za-z0-9_.-]{1,128}\\.css") &&
+                entry.getValue() instanceof String) {
+                styleSheets.put(entry.getKey(), (String) entry.getValue());
+            }
+        }
+        if (styleSheets.isEmpty()) {
+            styleSheets.put(VARIABLES_SHEET, variables(theme));
+            styleSheets.put(STYLE_SHEET, stylesheet(theme));
+            metadata.put("style_sheets", new ArrayList<Object>(styleSheets.keySet()));
+        } else {
+            List<Object> metadataSheets = validStyleSheets(metadata.get("style_sheets"));
+            if (!metadataSheets.contains(VARIABLES_SHEET)) {
+                metadataSheets.add(0, VARIABLES_SHEET);
+                metadata.put("style_sheets", metadataSheets);
+            }
+            if (!metadataSheets.contains(STYLE_SHEET)) {
+                metadataSheets.add(STYLE_SHEET);
+                metadata.put("style_sheets", metadataSheets);
+            }
+            if (!styleSheets.containsKey(VARIABLES_SHEET)) styleSheets.put(VARIABLES_SHEET, "");
+            if (!styleSheets.containsKey(STYLE_SHEET)) styleSheets.put(STYLE_SHEET, "");
+        }
+        Map<String, String> colors = colorVariables(theme);
+        styleSheets.put(VARIABLES_SHEET, updateVariables(
+            styleSheets.get(VARIABLES_SHEET),
+            colors
+        ));
+        styleSheets.put(STYLE_SHEET, appendOverrides(
+            styleSheets.get(STYLE_SHEET),
+            theme
+        ));
 
         String metadataJson = ThemeDocument.write(metadata);
-        String variablesCss = variables(theme);
-        String themeCss = stylesheet(theme);
         try (ZipOutputStream output = new ZipOutputStream(new FileOutputStream(archive))) {
             addEntry(output, "metadata.json", metadataJson);
-            addEntry(output, VARIABLES_SHEET, variablesCss);
-            addEntry(output, "style_sheet_md2.css", themeCss);
+            for (Map.Entry<String, String> entry : styleSheets.entrySet()) {
+                addEntry(output, entry.getKey(), entry.getValue());
+            }
         } catch (IOException exception) {
             archive.delete();
             throw new IOException("Gboard could not generate the native theme archive.", exception);
@@ -172,49 +210,140 @@ final class GboardNativeTheme {
     }
 
     private static String variables(Map<String, Object> theme) {
-        int board = ThemeDocument.color(theme, "boardBackground", 0xFF17181C);
+        return updateVariables("", colorVariables(theme));
+    }
+
+    private static String stylesheet(Map<String, Object> theme) {
+        return "@def color_header @web_color_bg;\n"
+            + "@def color_base @web_color_bg;\n"
+            + "@def color_icon_action @web_color_label;\n"
+            + "@def color_state_action_pressed @web_color_accent_pressed;\n"
+            + "@def color_state_action @web_color_accent;\n"
+            + "@def color_label_function_key @web_color_label;\n"
+            + "@def color_label_space_key @morphe_color_spacebar_text;\n"
+            + "@def color_state_key_pressed @web_color_key_bg_pressed;\n"
+            + "@def color_state_key @web_color_key_bg;\n"
+            + "@def color_state_key_dark_pressed @web_color_secondary_key_bg_pressed;\n"
+            + "@def color_state_key_dark @web_color_secondary_key_bg;\n"
+            + "@def color_state_space_bar_pressed @web_color_secondary_key_bg_pressed;\n"
+            + "@def color_state_space_bar @web_color_secondary_key_bg;\n"
+            + "@def color_popup_background @web_color_secondary_key_bg;\n"
+            + "@def color_label @web_color_label;\n"
+            + "@def color_icon @web_color_label;\n"
+            + "@def default_bordered_key_color @web_color_key_bg;\n"
+            + "@def default_action_key_background_color @web_color_accent;\n"
+            + "@def default_action_key_background_color_pressed @web_color_accent_pressed;\n"
+            + ".keyboard-body-area, .keyboard-base-area, .keyboard-header-area { "
+            + "background_color: @color_base; }\n"
+            + ".keytop { background_color: @color_state_key; }\n"
+            + ".keytop.dark { background_color: @morphe_color_modifier; }\n"
+            + ".keytop.for-space-bar, .space_bar { background_color: @morphe_color_spacebar; }\n"
+            + ".keytop.for-action-key { background_color: @morphe_color_enter; }\n"
+            + ".keytop:pressed { background_color: @web_color_key_bg_pressed; }\n"
+            + ".keytop.dark:pressed { background_color: @web_color_secondary_key_bg_pressed; }\n"
+            + ".keytop.for-space-bar:pressed, .space_bar:pressed { "
+            + "background_color: @morphe_color_spacebar_pressed; }\n"
+            + ".keytop.for-action-key:pressed { background_color: @web_color_accent_pressed; }\n"
+            + ".label, .icon { color: @web_color_label; }\n"
+            + ".label.for-space-key { color: @morphe_color_spacebar_text; }\n";
+    }
+
+    private static List<Object> validStyleSheets(Object value) {
+        List<Object> result = new ArrayList<>();
+        for (Object name : ThemeDocument.array(value)) {
+            if (name instanceof String &&
+                ((String) name).matches("[A-Za-z0-9_.-]{1,128}\\.css") &&
+                !result.contains(name)) {
+                result.add(name);
+            }
+        }
+        return result;
+    }
+
+    private static Map<String, String> colorVariables(Map<String, Object> theme) {
         int key = ThemeDocument.color(theme, "keyBackground", 0xFF303338);
+        int modifier = ThemeDocument.color(theme, "modifierKeyBackground", key);
+        int spacebar = ThemeDocument.color(theme, "spacebarBackground", key);
         int pressed = ThemeDocument.color(
             theme,
             "pressedKeyBackground",
             ThemeDocument.color(theme, "accent", key)
         );
         int text = ThemeDocument.color(theme, "keyText", 0xFFE9E9EE);
-        int enter = ThemeDocument.color(theme, "enterKeyBackground", 0xFF4C8DF6);
-        int modifier = ThemeDocument.color(theme, "modifierKeyBackground", key);
-        int spacebar = ThemeDocument.color(theme, "spacebarBackground", key);
-        int spacebarText = ThemeDocument.color(theme, "spacebarText", text);
-        return "@def color_set_a1 " + cssColor(board) + ";\n"
-            + "@def color_set_a2 " + cssColor(key) + ";\n"
-            + "@def color_set_a3 " + cssColor(pressed) + ";\n"
-            + "@def color_set_a4 " + cssColor(text) + ";\n"
-            + "@def color_set_a5 " + cssColor(enter) + ";\n"
-            + "@def color_set_a6 " + cssColor(modifier) + ";\n"
-            + "@def color_set_a7 " + cssColor(spacebar) + ";\n"
-            + "@def color_set_a8 " + cssColor(spacebarText) + ";\n";
+        Map<String, String> colors = new LinkedHashMap<>();
+        colors.put("web_color_bg", cssColor(ThemeDocument.color(theme, "boardBackground", 0xFF17181C)));
+        colors.put("web_color_label", cssColor(text));
+        colors.put("web_color_accent", cssColor(
+            ThemeDocument.color(theme, "accent", 0xFF8AB4F8)
+        ));
+        colors.put("web_color_accent_pressed", cssColor(pressed));
+        colors.put("web_color_tertiary_key_bg", cssColor(modifier));
+        colors.put("web_color_tertiary_key_bg_pressed", cssColor(pressed));
+        colors.put("web_color_key_bg", cssColor(key));
+        colors.put("web_color_key_bg_pressed", cssColor(pressed));
+        colors.put("web_color_secondary_key_bg", cssColor(modifier));
+        colors.put("web_color_secondary_key_bg_pressed", cssColor(pressed));
+        colors.put("morphe_color_modifier", cssColor(modifier));
+        colors.put("morphe_color_spacebar", cssColor(spacebar));
+        colors.put("morphe_color_spacebar_pressed", cssColor(pressed));
+        colors.put("morphe_color_spacebar_text", cssColor(
+            ThemeDocument.color(theme, "spacebarText", text)
+        ));
+        colors.put("morphe_color_enter", cssColor(
+            ThemeDocument.color(theme, "enterKeyBackground", 0xFF4C8DF6)
+        ));
+        return colors;
     }
 
-    private static String stylesheet(Map<String, Object> theme) {
-        String shape = ThemeDocument.string(theme, "keyShape", "ROUNDED");
+    private static String updateVariables(String stylesheet, Map<String, String> colors) {
+        String result = stylesheet == null ? "" : stylesheet;
+        List<String> missing = new ArrayList<>();
+        for (Map.Entry<String, String> entry : colors.entrySet()) {
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "(?m)(^\\s*@def\\s+" + java.util.regex.Pattern.quote(entry.getKey()) +
+                    "\\s+)(#[0-9A-Fa-f]{6,8})(\\s*;)"
+            );
+            java.util.regex.Matcher matcher = pattern.matcher(result);
+            if (matcher.find()) {
+                result = matcher.replaceAll(java.util.regex.Matcher.quoteReplacement(
+                    matcher.group(1) + entry.getValue() + matcher.group(3)
+                ));
+            } else {
+                missing.add("@def " + entry.getKey() + " " + entry.getValue() + ";");
+            }
+        }
+        if (!missing.isEmpty()) {
+            if (!result.isEmpty() && !result.endsWith("\n")) result += "\n";
+            StringBuilder additions = new StringBuilder();
+            for (String definition : missing) additions.append(definition).append('\n');
+            result += additions;
+        }
+        return result;
+    }
+
+    private static String appendOverrides(String stylesheet, Map<String, Object> theme) {
+        String source = stylesheet == null ? "" : stylesheet;
+        int oldOverrides = source.indexOf(OVERRIDE_MARKER);
+        if (oldOverrides >= 0) source = source.substring(0, oldOverrides).trim();
         int radius = (int) ThemeDocument.number(theme, "keyCornerRadiusDp", 6);
+        String shape = ThemeDocument.string(theme, "keyShape", "ROUNDED");
         if ("SHARP".equalsIgnoreCase(shape)) radius = 0;
         if ("PILL".equalsIgnoreCase(shape) || "CIRCLE".equalsIgnoreCase(shape)) radius = 999;
         String cornerRadius = Integer.toString(Math.max(0, Math.min(999, radius)));
-        return ".keyboard-body-area { background_color: @color_set_a1; }\n"
-            + ".keyboard-base-area, .keyboard-header-area { background_color: @color_set_a1; }\n"
-            + ".keytop, .keytop.dark, .keytop.for-numpad-big-panel { "
-            + "background_color: @color_set_a2; background_shape: rectangle; "
-            + "background_corner_radius: " + cornerRadius + "; }\n"
-            + ".keytop:pressed, .keytop.dark:pressed { background_color: @color_set_a3; }\n"
-            + ".keytop.for-action-key, .keytop.for-action-key-holder { "
-            + "background_color: @color_set_a5; }\n"
-            + ".keytop.for-action-key:pressed, .keytop.for-action-key-holder:pressed { "
-            + "background_color: @color_set_a3; }\n"
-            + ".keytop.for-space-key { background_color: @color_set_a7; }\n"
-            + ".label, .icon, .label.for-function-key, .icon.for-function-key, "
-            + ".label { color: @color_set_a4; }\n"
-            + ".label.for-space-key, .icon.for-space-key { color: @color_set_a8; }\n"
-            + ".keytop.for-modifier-key { background_color: @color_set_a6; }\n";
+        return source + (source.isEmpty() ? "" : "\n\n") + OVERRIDE_MARKER + "\n"
+            + ".keytop { background_shape: rectangle; background_corner_radius: "
+            + cornerRadius + "; }\n"
+            + ".keytop.dark { background_color: @morphe_color_modifier; }\n"
+            + ".keytop.for-space-bar, .space_bar { background_color: @morphe_color_spacebar; "
+            + "background_shape: rectangle; background_corner_radius: "
+            + cornerRadius + "; }\n"
+            + ".keytop.for-space-bar:pressed, .space_bar:pressed { "
+            + "background_color: @morphe_color_spacebar_pressed; }\n"
+            + ".keytop.for-action-key { background_color: @morphe_color_enter; }\n"
+            + ".keytop:pressed { background_color: @web_color_key_bg_pressed; }\n"
+            + ".keytop.dark:pressed { background_color: @web_color_secondary_key_bg_pressed; }\n"
+            + ".label, .icon { color: @web_color_label; }\n"
+            + ".label.for-space-key { color: @morphe_color_spacebar_text; }\n";
     }
 
     private static String cssColor(int color) {
