@@ -48,6 +48,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private static final int REQUEST_KEY_STYLE_IMAGE = 7416;
     private static final int REQUEST_KEY_ICON_IMAGE = 7417;
     private static final int REQUEST_EXPORT_NATIVE_THEME = 7418;
+    private static final int REQUEST_EXPORT_ICONS = 7419;
     private static final int MAX_THEME_IMAGE_BYTES = 4 * 1024 * 1024;
     private static final int MAX_THEME_PACKAGE_BYTES = 8 * 1024 * 1024;
     private static final int MAX_HISTORY = 30;
@@ -124,10 +125,19 @@ public final class KeyboardThemeStudioActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+        if (resultCode != RESULT_OK || data == null) {
             if (requestCode == REQUEST_EXPORT_NATIVE_THEME) nativeExportTheme = null;
+            if (requestCode == REQUEST_STICKER_IMAGE || requestCode == REQUEST_EXPORT_ICONS) showEditor();
             if (requestCode == REQUEST_IMPORT_THEME || requestCode == REQUEST_EXPORT_THEME ||
                 requestCode == REQUEST_EXPORT_NATIVE_THEME) showManager();
+            return;
+        }
+        if (requestCode == REQUEST_STICKER_IMAGE) {
+            importStickers(data);
+            return;
+        }
+        if (data.getData() == null) {
+            if (requestCode == REQUEST_EXPORT_NATIVE_THEME) nativeExportTheme = null;
             return;
         }
         Uri uri = data.getData();
@@ -137,14 +147,14 @@ public final class KeyboardThemeStudioActivity extends Activity {
             exportTheme(uri);
         } else if (requestCode == REQUEST_EXPORT_NATIVE_THEME) {
             exportNativeTheme(uri);
+        } else if (requestCode == REQUEST_EXPORT_ICONS) {
+            exportIcons(uri);
         } else if (requestCode == REQUEST_IMPORT_ICONS) {
             importIcons(uri);
         } else if (requestCode == REQUEST_BACKGROUND_IMAGE) {
             importThemeImage(uri, "backgroundImageBase64", "Background image");
         } else if (requestCode == REQUEST_KEY_TEXTURE) {
             importThemeImage(uri, "keyTextureBase64", "Key texture");
-        } else if (requestCode == REQUEST_STICKER_IMAGE) {
-            importSticker(uri);
         } else if (requestCode == REQUEST_KEY_STYLE_IMAGE) {
             importKeyStyleImage(uri);
         } else if (requestCode == REQUEST_KEY_ICON_IMAGE) {
@@ -288,6 +298,10 @@ public final class KeyboardThemeStudioActivity extends Activity {
         Button importIcons = smallButton("Import icon pack");
         importIcons.setOnClickListener(view -> startIconImport());
         iconRow.addView(importIcons);
+        Button exportIcons = smallButton("Export icon pack");
+        exportIcons.setEnabled(iconCount > 0);
+        exportIcons.setOnClickListener(view -> startIconExport());
+        iconRow.addView(exportIcons);
         content.addView(iconRow);
         Switch enableIcons = new Switch(this);
         enableIcons.setText("Apply imported icons to supported keys");
@@ -511,6 +525,10 @@ public final class KeyboardThemeStudioActivity extends Activity {
         addSticker.setEnabled(stickers.size() < 6);
         addSticker.setOnClickListener(view -> startImageImport(REQUEST_STICKER_IMAGE));
         content.addView(addSticker);
+        content.addView(text(
+            "Export the theme JSON to share its stickers and per-key artwork. Native Gboard ZIP exports contain Gboard stylesheets only.",
+            13
+        ));
 
         content.addView(text("Per-key visual styles", 20));
         content.addView(text(
@@ -1131,10 +1149,25 @@ public final class KeyboardThemeStudioActivity extends Activity {
         }
     }
 
+    private void startIconExport() {
+        Intent create = new Intent("android.intent.action.CREATE_DOCUMENT");
+        create.addCategory(Intent.CATEGORY_OPENABLE);
+        create.setType("application/zip");
+        create.putExtra("android.intent.extra.TITLE", "gboard-icons.wmicons");
+        try {
+            startActivityForResult(create, REQUEST_EXPORT_ICONS);
+        } catch (android.content.ActivityNotFoundException exception) {
+            showMessage("No file picker is available.");
+        }
+    }
+
     private void startImageImport(int requestCode) {
         Intent picker = new Intent("android.intent.action.OPEN_DOCUMENT");
         picker.addCategory(Intent.CATEGORY_OPENABLE);
         picker.setType("image/*");
+        if (requestCode == REQUEST_STICKER_IMAGE) {
+            picker.putExtra("android.intent.extra.ALLOW_MULTIPLE", true);
+        }
         try {
             startActivityForResult(picker, requestCode);
         } catch (android.content.ActivityNotFoundException exception) {
@@ -1179,28 +1212,47 @@ public final class KeyboardThemeStudioActivity extends Activity {
         if (persistTheme()) showEditor();
     }
 
-    private void importSticker(Uri uri) {
+    private void importStickers(Intent selection) {
         List<Object> stickers = ThemeDocument.array(editedLook.get("stickers"));
-        if (stickers.size() >= 6) {
-            showMessage("A theme can contain at most six stickers.");
+        List<Uri> uris = new ArrayList<>();
+        if (selection.getClipData() != null) {
+            for (int index = 0; index < selection.getClipData().getItemCount(); index++) {
+                Uri uri = selection.getClipData().getItemAt(index).getUri();
+                if (uri != null && !uris.contains(uri)) uris.add(uri);
+            }
+        } else if (selection.getData() != null) {
+            uris.add(selection.getData());
+        }
+        if (uris.isEmpty()) {
+            showMessage("No sticker images were selected.");
             return;
         }
-        try (InputStream input = getContentResolver().openInputStream(uri)) {
-            if (input == null) throw new IOException("The selected sticker could not be opened.");
-            String image = readImageBase64(input);
-            Map<String, Object> sticker = new java.util.LinkedHashMap<>();
-            sticker.put("imageBase64", image);
-            sticker.put("x", 0.5);
-            sticker.put("y", 0.5);
-            sticker.put("size", 0.18);
-            sticker.put("rotation", 0);
-            sticker.put("opacity", 100L);
+        if (stickers.size() + uris.size() > 6) {
+            showMessage("A theme can contain at most six stickers. Remove a sticker or select fewer images.");
+            return;
+        }
+        try {
+            List<Object> imported = new ArrayList<>();
+            for (Uri uri : uris) {
+                try (InputStream input = getContentResolver().openInputStream(uri)) {
+                    if (input == null) throw new IOException("A selected sticker image could not be opened.");
+                    Map<String, Object> sticker = new java.util.LinkedHashMap<>();
+                    sticker.put("imageBase64", readImageBase64(input));
+                    sticker.put("x", 0.5);
+                    sticker.put("y", 0.5);
+                    sticker.put("size", 0.18);
+                    sticker.put("rotation", 0);
+                    sticker.put("opacity", 100L);
+                    imported.add(sticker);
+                }
+            }
             pushHistory();
-            stickers.add(sticker);
+            stickers.addAll(imported);
             editedLook.put("stickers", stickers);
             if (!persistTheme()) return;
             preview.invalidate();
             showEditor();
+            showMessage("Added " + imported.size() + (imported.size() == 1 ? " sticker." : " stickers."));
         } catch (IOException | SecurityException exception) {
             showMessage(exception.getMessage());
         }
@@ -1451,6 +1503,16 @@ public final class KeyboardThemeStudioActivity extends Activity {
             if (output == null) throw new IOException("The export file could not be opened.");
             output.write(ThemeDocument.write(theme).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             showMessage("Theme exported.");
+        } catch (IOException | SecurityException exception) {
+            showMessage(exception.getMessage());
+        }
+    }
+
+    private void exportIcons(Uri uri) {
+        try (OutputStream output = getContentResolver().openOutputStream(uri)) {
+            if (output == null) throw new IOException("The icon-pack export file could not be opened.");
+            KeyboardIconPackRuntime.exportPack(this, output);
+            showMessage("Icon pack exported in WMKeyboard-compatible format.");
         } catch (IOException | SecurityException exception) {
             showMessage(exception.getMessage());
         }

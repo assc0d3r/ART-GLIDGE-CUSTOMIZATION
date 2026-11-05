@@ -30,6 +30,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public final class KeyboardIconPackRuntime {
     public static final String PREF_ENABLED = "pref_key_keyboard_icons_enabled";
@@ -293,6 +294,69 @@ public final class KeyboardIconPackRuntime {
         File directory = new File(new File(context.getFilesDir(), "morphe-wmicons"), "active");
         File[] files = directory.listFiles((parent, name) -> name.endsWith(".icon"));
         return files == null ? 0 : files.length;
+    }
+
+    public static void exportPack(Context context, java.io.OutputStream destination) throws IOException {
+        if (context == null || destination == null) {
+            throw new IOException("No icon pack export destination is available.");
+        }
+        File directory = new File(new File(context.getFilesDir(), "morphe-wmicons"), "active");
+        File[] files = directory.listFiles((parent, name) -> name.endsWith(".icon"));
+        if (files == null || files.length == 0) {
+            throw new IOException("There are no imported icons to export.");
+        }
+        if (files.length > MAX_ENTRIES - 1) {
+            throw new IOException("The active icon pack contains too many icons to export.");
+        }
+        java.util.Arrays.sort(files, (left, right) -> left.getName().compareToIgnoreCase(right.getName()));
+        ZipOutputStream zip = new ZipOutputStream(destination);
+        byte[] manifest =
+            "{\"format\":\"wmkeyboard-icons\",\"version\":1,\"name\":\"Gboard icon pack\"}"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        zip.putNextEntry(new ZipEntry("pack.json"));
+        zip.write(manifest);
+        zip.closeEntry();
+        long totalBytes = manifest.length;
+        for (File file : files) {
+            String slot = file.getName().substring(0, file.getName().length() - 5);
+            if (!isSafeSlot(slot)) throw new IOException("The active icon pack contains an invalid slot.");
+            long length = file.length();
+            if (length <= 0 || length > MAX_ENTRY_BYTES ||
+                totalBytes + length > MAX_ARCHIVE_BYTES) {
+                throw new IOException("The active icon pack exceeds the export size limit.");
+            }
+            String extension = imageExtension(file);
+            zip.putNextEntry(new ZipEntry("icons/" + slot + "." + extension));
+            try (java.io.InputStream input = new java.io.FileInputStream(file)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    totalBytes += read;
+                    if (totalBytes > MAX_ARCHIVE_BYTES) {
+                        throw new IOException("The active icon pack exceeds the export size limit.");
+                    }
+                    zip.write(buffer, 0, read);
+                }
+            }
+            zip.closeEntry();
+        }
+        zip.finish();
+        zip.flush();
+    }
+
+    private static String imageExtension(File file) throws IOException {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+        if (options.outWidth <= 0 || options.outHeight <= 0 ||
+            options.outWidth > MAX_IMAGE_DIMENSION || options.outHeight > MAX_IMAGE_DIMENSION) {
+            throw new IOException("An active icon is invalid or exceeds 4096 × 4096 pixels.");
+        }
+        if ("image/webp".equals(options.outMimeType)) return "webp";
+        if ("image/jpeg".equals(options.outMimeType)) return "jpg";
+        if ("image/gif".equals(options.outMimeType)) return "gif";
+        if ("image/png".equals(options.outMimeType)) return "png";
+        throw new IOException("An active icon uses an unsupported image format.");
     }
 
     static List<String> activeIconSlots(Context context) {

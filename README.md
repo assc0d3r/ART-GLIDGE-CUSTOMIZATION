@@ -6,9 +6,9 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
   duration, width, and point retention.
 - **Multilingual Suggestion:** optionally promote the first suggestion written in a different
   Unicode script beside Gboard's top candidate.
-- **Keyboard Icon Packs:** apply imported WMKeyboard `.wmicons` or ZIP icons to supported Gboard
-  keys and toolbar buttons. Import and enable packs from Theme Builder; selecting this patch also
-  enables Theme Builder.
+- **Keyboard Icon Packs:** import and export compatible WMKeyboard `.wmicons` ZIP packs and apply
+  their icons to supported Gboard keys and toolbar buttons. Per-key icons can also be added in
+  Theme Builder; selecting this patch also enables Theme Builder.
 - **Gboard Theme Builder:** create native Gboard themes, import/export Gboard `.pack` and `.zip`
   packages plus WMKeyboard `.wmtheme.json`, and maintain deletable theme profiles. Imported native
   CSS sheets and border flavors are retained when compatible. The editor provides palette and
@@ -40,7 +40,8 @@ not guarantee every version will patch or expose every icon.
 Theme Builder uses Gboard's format-version-3 native theme archive (`metadata.json`,
 `style_sheet_variables.css`, and CSS stylesheets) as its activation/export format. It imports the
 RBoard-style `.pack` wrapper with a nested native Gboard ZIP, direct native theme ZIPs, and WMKeyboard
-`.wmtheme.json`. Compatible imported stylesheets and border flavors are retained and updated with
+`.wmtheme.json`. Theme JSON exports include sticker and per-key art assets; native Gboard ZIP
+exports contain stylesheets and palette only. Compatible imported stylesheets and border flavors are retained and updated with
 the editor's palette. Unknown format versions or missing declared stylesheets are rejected instead
 of being silently converted. It supports up to 13 visual profiles and undo/redo. Gboard supplies
 the actual key layout and actions; this builder only styles the rendered keys.
@@ -48,6 +49,8 @@ Imported icon packs are managed separately and are not embedded in theme exports
 Modifier-key and spacebar background/text colors can be edited separately, and the spacebar
 is available in per-key styling. The key editor supports per-key color, shape, opacity, texture,
 text styling, icon tint, and custom icons; custom icons take precedence over icon-pack assets.
+Multiple sticker images can be imported together (up to six per theme). Theme JSON export/import
+carries stickers, while native Gboard ZIP export cannot include the Morphe overlay stickers.
 Saved themes can be deleted from the Theme Builder theme list; deleting
 the active theme returns Gboard to its system theme. The runtime depends on Gboard's internal
 `SoftKeyView` render method and view-tree naming, so extended styling is experimental, may not cover
@@ -73,5 +76,5 @@ custom native theme setting.
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.23.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.24.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

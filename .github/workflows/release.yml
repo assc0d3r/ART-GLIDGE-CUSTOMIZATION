@@ -65,12 +65,14 @@ jobs:
           - Manage WMKeyboard `.wmicons`/ZIP imports and icon replacement from Theme Builder; the
             separate Keyboard Icon Packs patch depends on Theme Builder. Icon lookup prioritizes
             Gboard key metadata, then uses a fallback search for a visible key image view. Slots
-            without a known Gboard match are left unchanged.
+            without a known Gboard match are left unchanged. Active icon packs can be exported in
+            WMKeyboard-compatible format.
           - Replace the legacy theme editor with Gboard Theme Builder. Create native Gboard themes,
             import RBoard `.pack`, native theme `.zip`, and WMKeyboard `.wmtheme.json` packages,
             preserve compatible native CSS stylesheets/flavors, and export a native theme ZIP.
             Edit per-key colors, shapes, textures, opacity, icon tint/custom icons, modifiers, and
-            spacebar appearance. Visual profiles retain Gboard's key positions and actions.
+            spacebar appearance. Import multiple sticker images and include them in theme JSON
+            exports. Visual profiles retain Gboard's key positions and actions.
             These hooks depend on Gboard internals and are not guaranteed across versions.
           - Apply a pure-black AMOLED style to AndroidX preference rows across Gboard settings,
             including settings introduced by other patches. Custom screens that do not use
