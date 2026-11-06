@@ -13,7 +13,7 @@ A Morphe patch bundle for Gboard (`com.google.android.inputmethod.latin`) contai
   packages plus WMKeyboard `.wmtheme.json`, and maintain deletable theme profiles. Imported native
   CSS sheets and border flavors are retained when compatible. The editor provides palette and
   per-key colors, shapes, textures, opacity, icon tint/custom icons, wallpaper colors, animation,
-  toolbar/popup styling, and sticker overlays.
+  toolbar/popup styling, TTF/OTF fonts for keyboard key labels, and sticker overlays.
 - **AMOLED Gboard Settings:** apply black backgrounds and legible text/control colors to
   AndroidX preference rows. Because the hook targets the shared preference binder, settings
   added by other patches are styled automatically when Gboard displays them.
@@ -51,6 +51,10 @@ is available in per-key styling. The key editor supports per-key color, shape, o
 text styling, icon tint, and custom icons; custom icons take precedence over icon-pack assets.
 Multiple sticker images can be imported together (up to six per theme). Theme JSON export/import
 carries stickers, while native Gboard ZIP export cannot include the Morphe overlay stickers.
+Custom TTF/OTF fonts can be applied to all rendered key labels or overridden per key. Theme JSON
+exports carry font files; native Gboard ZIP exports do not embed them. The font hook does not
+replace text elsewhere in Gboard, such as suggestions or settings, and Gboard renderer changes
+may prevent it from applying.
 Saved themes can be deleted from the Theme Builder theme list; deleting
 the active theme returns Gboard to its system theme. The runtime depends on Gboard's internal
 `SoftKeyView` render method and view-tree naming, so extended styling is experimental, may not cover
@@ -76,5 +80,5 @@ custom native theme setting.
 Run `build.sh` with JDK 21 and Bash. The script downloads the Kotlin compiler, Morphe CLI, and Android build
 dependencies when they are not already cached in `libs/`.
 
-The Morphe patch bundle is generated at `dist/patches-1.0.24.mpp`. Add the repository to Morphe
+The Morphe patch bundle is generated at `dist/patches-1.0.25.mpp`. Add the repository to Morphe
 to consume the release bundle; use the `.mpp` file directly when sideloading a local build.

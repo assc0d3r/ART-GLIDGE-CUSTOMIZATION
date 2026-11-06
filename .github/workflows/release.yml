@@ -70,9 +70,10 @@ jobs:
           - Replace the legacy theme editor with Gboard Theme Builder. Create native Gboard themes,
             import RBoard `.pack`, native theme `.zip`, and WMKeyboard `.wmtheme.json` packages,
             preserve compatible native CSS stylesheets/flavors, and export a native theme ZIP.
-            Edit per-key colors, shapes, textures, opacity, icon tint/custom icons, modifiers, and
+            Edit key-label fonts (TTF/OTF), per-key colors, shapes, textures, opacity, icon tint/custom icons, modifiers, and
             spacebar appearance. Import multiple sticker images and include them in theme JSON
-            exports. Visual profiles retain Gboard's key positions and actions.
+            exports. Font files are included in theme JSON, not native ZIPs. Visual profiles retain
+            Gboard's key positions and actions.
             These hooks depend on Gboard internals and are not guaranteed across versions.
           - Apply a pure-black AMOLED style to AndroidX preference rows across Gboard settings,
             including settings introduced by other patches. Custom screens that do not use

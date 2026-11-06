@@ -27,7 +27,7 @@ private fun isVoidReturn(opcode: Opcode): Boolean =
 
 val gboardThemeStudioPatch = bytecodePatch(
     name = "Gboard Theme Builder",
-    description = "Create and export native Gboard themes, customize per-key visuals, and manage sticker artwork.",
+    description = "Create native Gboard themes, customize key visuals and fonts, and manage sticker artwork.",
     default = true
 ) {
     compatibleWith(

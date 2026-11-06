@@ -1,5 +1,5 @@
 {
-  "version": "1.0.24",
+  "version": "1.0.25",
   "patches": [
     {
       "name": "Glide Trail Customization",
@@ -24,7 +24,7 @@
     },
     {
       "name": "Gboard Theme Builder",
-      "description": "Create native Gboard themes, import/export theme files, style individual keys, manage stickers, and share compatible icon packs.",
+      "description": "Create native Gboard themes, customize key colors and fonts, manage stickers, and import/export compatible theme files.",
       "use": true,
       "dependencies": [],
       "options": []

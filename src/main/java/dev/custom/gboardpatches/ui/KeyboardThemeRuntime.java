@@ -6,6 +6,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.util.Log;
@@ -16,6 +17,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.WeakHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +41,7 @@ public final class KeyboardThemeRuntime {
     private static final WeakHashMap<TextView, ColorStateList> ORIGINAL_TEXT_COLORS = new WeakHashMap<>();
     private static final WeakHashMap<TextView, android.graphics.Typeface> ORIGINAL_TYPEFACES = new WeakHashMap<>();
     private static final WeakHashMap<TextView, Float> ORIGINAL_TEXT_SIZES = new WeakHashMap<>();
+    private static final java.util.WeakHashMap<String, Typeface> FONT_CACHE = new java.util.WeakHashMap<>();
     private static final LruCache<String, Bitmap> IMAGE_CACHE = new LruCache<String, Bitmap>(4096) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
@@ -169,7 +176,17 @@ public final class KeyboardThemeRuntime {
                 textureOpacity
             ));
             setTextColors(keyView, keyText);
-            applyKeyTextStyle(keyView, keyStyle);
+            Typeface selectedFont = customTypeface(
+                keyView.getContext(),
+                ThemeDocument.string(keyStyle, "fontBase64", null)
+            );
+            if (selectedFont == null) {
+                selectedFont = customTypeface(
+                    keyView.getContext(),
+                    ThemeDocument.string(theme, "fontBase64", null)
+                );
+            }
+            applyKeyTextStyle(keyView, keyStyle, selectedFont);
             applyKeyIconStyles(keyView, keyStyle);
         } catch (RuntimeException exception) {
             Log.w(TAG, "Unable to apply the selected Gboard theme to a key.", exception);
@@ -629,7 +646,67 @@ public final class KeyboardThemeRuntime {
         }
     }
 
-    private static void applyKeyTextStyle(View view, Map<String, Object> style) {
+    public static Typeface previewTypeface(
+        Context context,
+        Map<String, Object> style,
+        Map<String, Object> theme
+    ) {
+        Typeface selected = customTypeface(context, ThemeDocument.string(style, "fontBase64", null));
+        return selected == null
+            ? customTypeface(context, ThemeDocument.string(theme, "fontBase64", null))
+            : selected;
+    }
+
+    private static synchronized Typeface customTypeface(Context context, String encoded) {
+        if (context == null || encoded == null || encoded.isEmpty()) return null;
+        Typeface cached = FONT_CACHE.get(encoded);
+        if (cached != null) return cached;
+        File fontFile = null;
+        File temporary = null;
+        try {
+            byte[] fontBytes = Base64.decode(encoded, Base64.DEFAULT);
+            if (fontBytes.length == 0 || fontBytes.length > 4 * 1024 * 1024) {
+                throw new IOException("Custom fonts must be between 1 byte and 4 MiB.");
+            }
+            String hash = hex(MessageDigest.getInstance("SHA-256").digest(fontBytes));
+            File directory = new File(context.getFilesDir(), "morphe-theme-fonts");
+            if (!directory.exists() && !directory.mkdirs()) {
+                throw new IOException("Gboard could not create custom font storage.");
+            }
+            fontFile = new File(directory, hash + ".font");
+            if (!fontFile.isFile() || fontFile.length() != fontBytes.length) {
+                temporary = new File(directory, hash + ".tmp");
+                try (FileOutputStream output = new FileOutputStream(temporary)) {
+                    output.write(fontBytes);
+                    output.getFD().sync();
+                }
+                if (fontFile.exists() && !fontFile.delete()) {
+                    throw new IOException("Gboard could not replace the cached custom font.");
+                }
+                if (!temporary.renameTo(fontFile)) {
+                    throw new IOException("Gboard could not store the custom font.");
+                }
+            }
+            Typeface typeface = Typeface.createFromFile(fontFile);
+            FONT_CACHE.put(encoded, typeface);
+            return typeface;
+        } catch (IOException | NoSuchAlgorithmException | RuntimeException exception) {
+            Log.w(TAG, "Unable to load the selected custom Gboard font.", exception);
+            return null;
+        } finally {
+            if (temporary != null && temporary.exists() && !temporary.delete()) {
+                Log.w(TAG, "Temporary custom font could not be removed.");
+            }
+        }
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) result.append(String.format(java.util.Locale.ROOT, "%02x", value & 0xFF));
+        return result.toString();
+    }
+
+    private static void applyKeyTextStyle(View view, Map<String, Object> style, Typeface customFont) {
         if (view instanceof TextView) {
             TextView label = (TextView) view;
             if (!ORIGINAL_TYPEFACES.containsKey(label)) {
@@ -637,10 +714,14 @@ public final class KeyboardThemeRuntime {
                 ORIGINAL_TEXT_SIZES.put(label, label.getTextSize());
             }
             Object boldValue = style.get("boldLabel");
+            Typeface base = customFont == null ? ORIGINAL_TYPEFACES.get(label) : customFont;
+            int typefaceStyle = boldValue instanceof Boolean
+                ? ((Boolean) boldValue ? Typeface.BOLD : Typeface.NORMAL)
+                : base == null ? Typeface.NORMAL : base.getStyle();
             if (boldValue instanceof Boolean) {
-                android.graphics.Typeface original = ORIGINAL_TYPEFACES.get(label);
-                label.setTypeface(original,
-                    (Boolean) boldValue ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+                label.setTypeface(base, typefaceStyle);
+            } else if (customFont != null) {
+                label.setTypeface(Typeface.create(customFont, typefaceStyle));
             } else {
                 label.setTypeface(ORIGINAL_TYPEFACES.get(label));
             }
@@ -654,7 +735,7 @@ public final class KeyboardThemeRuntime {
         if (!(view instanceof ViewGroup)) return;
         ViewGroup group = (ViewGroup) view;
         for (int index = 0; index < group.getChildCount(); index++) {
-            applyKeyTextStyle(group.getChildAt(index), style);
+            applyKeyTextStyle(group.getChildAt(index), style, customFont);
         }
     }
 

@@ -7,6 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.BitmapFactory;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -49,7 +50,9 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private static final int REQUEST_KEY_ICON_IMAGE = 7417;
     private static final int REQUEST_EXPORT_NATIVE_THEME = 7418;
     private static final int REQUEST_EXPORT_ICONS = 7419;
+    private static final int REQUEST_IMPORT_FONT = 7420;
     private static final int MAX_THEME_IMAGE_BYTES = 4 * 1024 * 1024;
+    private static final int MAX_THEME_FONT_BYTES = 4 * 1024 * 1024;
     private static final int MAX_THEME_PACKAGE_BYTES = 8 * 1024 * 1024;
     private static final int MAX_HISTORY = 30;
     private static final String[] EDITABLE_COLORS = {
@@ -91,6 +94,7 @@ public final class KeyboardThemeStudioActivity extends Activity {
     private boolean launchedForEdit;
     private String pendingKeyStyleSlot;
     private String pendingKeyIconSlot;
+    private String pendingFontSlot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,7 +131,8 @@ public final class KeyboardThemeStudioActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null) {
             if (requestCode == REQUEST_EXPORT_NATIVE_THEME) nativeExportTheme = null;
-            if (requestCode == REQUEST_STICKER_IMAGE || requestCode == REQUEST_EXPORT_ICONS) showEditor();
+            if (requestCode == REQUEST_STICKER_IMAGE || requestCode == REQUEST_EXPORT_ICONS ||
+                requestCode == REQUEST_IMPORT_FONT) showEditor();
             if (requestCode == REQUEST_IMPORT_THEME || requestCode == REQUEST_EXPORT_THEME ||
                 requestCode == REQUEST_EXPORT_NATIVE_THEME) showManager();
             return;
@@ -149,6 +154,8 @@ public final class KeyboardThemeStudioActivity extends Activity {
             exportNativeTheme(uri);
         } else if (requestCode == REQUEST_EXPORT_ICONS) {
             exportIcons(uri);
+        } else if (requestCode == REQUEST_IMPORT_FONT) {
+            importFont(uri);
         } else if (requestCode == REQUEST_IMPORT_ICONS) {
             importIcons(uri);
         } else if (requestCode == REQUEST_BACKGROUND_IMAGE) {
@@ -411,6 +418,21 @@ public final class KeyboardThemeStudioActivity extends Activity {
         addNumberControl("popupCornerRadiusDp", "Popup corner radius", 0, 40, 12);
         addNumberControl("popupOutlineWidthDp", "Popup outline width", 0, 3, 0);
 
+        content.addView(text("Custom font", 20));
+        content.addView(text(
+            "Applies to Gboard key labels rendered inside the keyboard. Font files travel with theme JSON exports, not native Gboard ZIPs.",
+            13
+        ));
+        Button importFont = button(editedLook.containsKey("fontBase64")
+            ? "Replace custom font" : "Import TTF/OTF font");
+        importFont.setOnClickListener(view -> startFontImport(null));
+        content.addView(importFont);
+        if (editedLook.containsKey("fontBase64")) {
+            Button clearFont = smallButton("Remove custom font");
+            clearFont.setOnClickListener(view -> clearThemeImage("fontBase64"));
+            content.addView(clearFont);
+        }
+
         content.addView(text("Images and textures", 20));
         Button backgroundImage = button(editedLook.containsKey("backgroundImageBase64")
             ? "Replace background image" : "Add background image");
@@ -667,6 +689,13 @@ public final class KeyboardThemeStudioActivity extends Activity {
         Button keyIcon = smallButton(current.get("keyIconBase64") == null
             ? "Import icon for this key" : "Replace this key's icon");
         form.addView(keyIcon);
+        Button keyFont = smallButton(current.get("fontBase64") == null
+            ? "Use custom font for this key" : "Replace this key's font");
+        form.addView(keyFont);
+        Button removeKeyFont = current.get("fontBase64") == null
+            ? null
+            : smallButton("Remove this key's font");
+        if (removeKeyFont != null) form.addView(removeKeyFont);
         Button removeKeyIcon = current.get("keyIconBase64") == null
             ? null
             : smallButton("Remove this key's icon");
@@ -762,6 +791,13 @@ public final class KeyboardThemeStudioActivity extends Activity {
             shownDialog.dismiss();
             startImageImport(REQUEST_KEY_ICON_IMAGE);
         });
+        keyFont.setOnClickListener(view -> {
+            pendingFontSlot = existingSlot == null
+                ? KEY_STYLE_SLOTS[target.getSelectedItemPosition()]
+                : existingSlot;
+            shownDialog.dismiss();
+            startFontImport(pendingFontSlot);
+        });
         if (removeKeyIcon != null) {
             removeKeyIcon.setOnClickListener(view -> {
                 String slot = existingSlot == null
@@ -774,6 +810,21 @@ public final class KeyboardThemeStudioActivity extends Activity {
                 style.remove("keyIconBase64");
                 if (style.isEmpty()) allStyles.remove(slot);
                 else allStyles.put(slot, style);
+                if (allStyles.isEmpty()) editedLook.remove("singleKeyStyles");
+                persistTheme();
+                shownDialog.dismiss();
+                showEditor();
+            });
+        }
+        if (removeKeyFont != null) {
+            removeKeyFont.setOnClickListener(view -> {
+                Map<String, Object> style = new java.util.LinkedHashMap<>(
+                    ThemeDocument.object(allStyles.get(existingSlot))
+                );
+                pushHistory();
+                style.remove("fontBase64");
+                if (style.isEmpty()) allStyles.remove(existingSlot);
+                else allStyles.put(existingSlot, style);
                 if (allStyles.isEmpty()) editedLook.remove("singleKeyStyles");
                 persistTheme();
                 shownDialog.dismiss();
@@ -1161,6 +1212,29 @@ public final class KeyboardThemeStudioActivity extends Activity {
         }
     }
 
+    private void startFontImport(String keySlot) {
+        pendingFontSlot = keySlot;
+        Intent picker = new Intent("android.intent.action.OPEN_DOCUMENT");
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("*/*");
+        picker.putExtra(
+            "android.intent.extra.MIME_TYPES",
+            new String[] {
+                "font/ttf",
+                "font/otf",
+                "application/x-font-ttf",
+                "application/x-font-opentype",
+                "application/octet-stream"
+            }
+        );
+        try {
+            startActivityForResult(picker, REQUEST_IMPORT_FONT);
+        } catch (android.content.ActivityNotFoundException exception) {
+            pendingFontSlot = null;
+            showMessage("No file picker is available.");
+        }
+    }
+
     private void startImageImport(int requestCode) {
         Intent picker = new Intent("android.intent.action.OPEN_DOCUMENT");
         picker.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1210,6 +1284,63 @@ public final class KeyboardThemeStudioActivity extends Activity {
         pushHistory();
         editedLook.remove(field);
         if (persistTheme()) showEditor();
+    }
+
+    private void importFont(Uri uri) {
+        String keySlot = pendingFontSlot;
+        pendingFontSlot = null;
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            if (input == null) throw new IOException("The selected font file could not be opened.");
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                if (output.size() + read > MAX_THEME_FONT_BYTES) {
+                    throw new IOException("Custom fonts must be 4 MiB or smaller.");
+                }
+                output.write(buffer, 0, read);
+            }
+            byte[] bytes = output.toByteArray();
+            if (bytes.length == 0) throw new IOException("The selected font file is empty.");
+            validateFont(bytes);
+            String encoded = Base64.encodeToString(bytes, Base64.NO_WRAP);
+            pushHistory();
+            if (keySlot == null) {
+                editedLook.put("fontBase64", encoded);
+            } else {
+                Map<String, Object> styles = ThemeDocument.object(editedLook.get("singleKeyStyles"));
+                Map<String, Object> style = new java.util.LinkedHashMap<>(
+                    ThemeDocument.object(styles.get(keySlot))
+                );
+                style.put("fontBase64", encoded);
+                styles.put(keySlot, style);
+                editedLook.put("singleKeyStyles", styles);
+            }
+            if (!persistTheme()) return;
+            preview.invalidate();
+            showEditor();
+            showMessage("Custom font added to the theme.");
+        } catch (IOException | SecurityException exception) {
+            showMessage(exception.getMessage());
+        }
+    }
+
+    private void validateFont(byte[] bytes) throws IOException {
+        File temporary = null;
+        try {
+            temporary = File.createTempFile("gboard-font-check-", ".font", getCacheDir());
+            try (OutputStream output = new java.io.FileOutputStream(temporary)) {
+                output.write(bytes);
+                output.flush();
+            }
+            Typeface.createFromFile(temporary);
+        } catch (RuntimeException exception) {
+            throw new IOException("The selected file is not a readable TTF or OTF font.", exception);
+        } finally {
+            if (temporary != null && temporary.exists() && !temporary.delete()) {
+                android.util.Log.w("GboardThemeStudio", "Temporary font validation file could not be removed.");
+            }
+        }
     }
 
     private void importStickers(Intent selection) {
@@ -1849,10 +1980,24 @@ public final class KeyboardThemeStudioActivity extends Activity {
             paint.setAlpha(Math.max(0, Math.min(100, keyOpacity)) * 255 / 100);
             paint.setTextSize(Math.min(dp(18), bounds.height() * 0.6f));
             paint.setTextAlign(Paint.Align.CENTER);
+            Typeface originalTypeface = paint.getTypeface();
+            Typeface customTypeface = KeyboardThemeRuntime.previewTypeface(
+                KeyboardThemeStudioActivity.this,
+                style,
+                previewTheme
+            );
+            if (customTypeface != null) {
+                boolean bold = Boolean.TRUE.equals(style.get("boldLabel"));
+                paint.setTypeface(Typeface.create(
+                    customTypeface,
+                    bold ? Typeface.BOLD : customTypeface.getStyle()
+                ));
+            }
             Paint.FontMetrics metrics = paint.getFontMetrics();
             float baseline = bounds.centerY() - (metrics.ascent + metrics.descent) / 2f;
             canvas.drawText(fallback, bounds.centerX(), baseline, paint);
             paint.setTextAlign(Paint.Align.LEFT);
+            paint.setTypeface(originalTypeface);
             paint.setAlpha(255);
         }
     }
