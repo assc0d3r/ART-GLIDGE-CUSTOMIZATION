@@ -93,6 +93,7 @@ jobs:
           - Patches are exposed as experimental targets without a fixed Gboard version allowlist.
           - Fix preference-listener proxy return types that could crash Gboard Settings when
             toggling switches.
+          - Build and validate the patch bundle with Morphe Desktop/Patcher 2.1.0.
 
           #### 📱 Add to Morphe App
           1. Open the **Morphe** app on your Android device.

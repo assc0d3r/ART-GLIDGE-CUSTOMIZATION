@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIST_DIR="${SCRIPT_DIR}/dist"
 BUILD_DIR="${SCRIPT_DIR}/build/classes"
 LIBS_DIR="${SCRIPT_DIR}/libs"
+MORPHE_VERSION="2.1.0"
 
 echo "=== Building Gboard Customization Patches ==="
 
@@ -50,14 +51,11 @@ fi
 echo "Using Kotlin Compiler: ${KOTLINC_JAR}"
 
 # 4. Resolve Morphe CLI / Patcher Framework
-MORPHE_JAR="${LIBS_DIR}/morphe-cli.jar"
+MORPHE_JAR="${LIBS_DIR}/morphe-desktop-${MORPHE_VERSION}-all.jar"
 if [ ! -f "${MORPHE_JAR}" ]; then
-    if [ -f "${HOME}/.local/morphe/morphe-cli.jar" ]; then
-        cp "${HOME}/.local/morphe/morphe-cli.jar" "${MORPHE_JAR}"
-    else
-        echo "Downloading morphe-desktop jar..."
-        curl -fSL -o "${MORPHE_JAR}" "https://github.com/MorpheApp/morphe-desktop/releases/download/v1.16.0/morphe-desktop-1.16.0-all.jar"
-    fi
+    echo "Downloading Morphe Desktop ${MORPHE_VERSION}..."
+    curl -fSL -o "${MORPHE_JAR}" \
+        "https://github.com/MorpheApp/morphe-desktop/releases/download/v${MORPHE_VERSION}/morphe-desktop-${MORPHE_VERSION}-all.jar"
 fi
 echo "Using Morphe Framework: ${MORPHE_JAR}"
 
@@ -127,7 +125,7 @@ Author: assc0d3r
 Contact: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/issues
 Website: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
 License: GPLv3
-Patcher-Version: 1.8.0
+Patcher-Version: ${MORPHE_VERSION}
 EOF
 
 # 7. Package temporary jar for D8 dexing
