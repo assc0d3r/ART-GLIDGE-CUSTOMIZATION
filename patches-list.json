@@ -1,0 +1,40 @@
+{
+  "version": "1.0.29",
+  "patches": [
+    {
+      "name": "Glide Trail Customization",
+      "description": "Customize Gboard glide typing trail color, fade duration, width, and length.",
+      "use": true,
+      "dependencies": [],
+      "options": []
+    },
+    {
+      "name": "Multilingual Suggestion",
+      "description": "Promote the first glide or typing candidate written in a different Unicode script.",
+      "use": true,
+      "dependencies": [],
+      "options": []
+    },
+    {
+      "name": "Keyboard Icon Packs",
+      "description": "Import, export, and apply compatible raster icon packs and per-key icons; requires Gboard Theme Builder.",
+      "use": true,
+      "dependencies": ["Gboard Theme Builder"],
+      "options": []
+    },
+    {
+      "name": "Gboard Theme Builder",
+      "description": "Create native Gboard themes, customize key colors and fonts, manage stickers, and import/export compatible theme files.",
+      "use": true,
+      "dependencies": [],
+      "options": []
+    },
+    {
+      "name": "AMOLED Gboard Settings",
+      "description": "Use a pure-black background with readable text and controls throughout Gboard preference screens, including settings added by other patches.",
+      "use": true,
+      "dependencies": [],
+      "options": []
+    }
+  ]
+}
