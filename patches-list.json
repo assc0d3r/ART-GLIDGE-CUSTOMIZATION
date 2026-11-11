@@ -1,13 +1,32 @@
 {
-  "version": "1.4.2",
+  "version": "1.0.30",
   "patches": [
+    {
+      "name": "Glide Trail Customization",
+      "description": "Allows customizing glide typing trail color (interactive HSV Color Wheel & Rainbow RGB), fade speed, thickness, and length.",
+      "use": true,
+      "dependencies": [
+        "Glide Trail Customization Settings"
+      ],
+      "compatiblePackages": {
+        "com.google.android.inputmethod.latin": [
+          "18.6.3.1002251336-release-arm64-v8a",
+          "18.0.3.954559732-release-arm64-v8a",
+          "18.0.3"
+        ]
+      },
+      "options": []
+    },
     {
       "name": "Backspace Repeat Haptic Feedback",
       "description": "Triggers continuous tactile feedback pulses when the backspace key is held down during repeated deletion (with settings toggle and empty text suppression).",
       "use": true,
-      "dependencies": [],
+      "dependencies": [
+        "Backspace Repeat Haptic Feedback Settings"
+      ],
       "compatiblePackages": {
         "com.google.android.inputmethod.latin": [
+          "18.6.3.1002251336-release-arm64-v8a",
           "18.0.3.954559732-release-arm64-v8a",
           "18.0.3"
         ]
@@ -18,9 +37,12 @@
       "name": "Enter Key Tasker Event",
       "description": "Broadcasts an Intent event to Tasker whenever the Enter or IME action key is pressed on Gboard (with target package, action type, and cursor text).",
       "use": true,
-      "dependencies": [],
+      "dependencies": [
+        "Enter Key Tasker Event Settings"
+      ],
       "compatiblePackages": {
         "com.google.android.inputmethod.latin": [
+          "18.6.3.1002251336-release-arm64-v8a",
           "18.0.3.954559732-release-arm64-v8a",
           "18.0.3"
         ]
@@ -28,14 +50,53 @@
       "options": []
     },
     {
-      "name": "Glide Trail Customization",
-      "description": "Allows customizing glide typing trail color (interactive HSV Color Wheel & Rainbow RGB), fade speed, thickness, and length.",
+      "name": "AMOLED Gboard Settings",
+      "description": "Applies a pure-black theme to Gboard settings rows.",
       "use": true,
       "dependencies": [],
       "compatiblePackages": {
         "com.google.android.inputmethod.latin": [
-          "18.0.3.954559732-release-arm64-v8a",
-          "18.0.3"
+          "18.6.3.1002251336-release-arm64-v8a"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Gboard Theme Builder",
+      "description": "Adds a Theme Builder screen for key colour, corner radius and live preview, applied by the patch runtime.",
+      "use": true,
+      "dependencies": [
+        "Gboard Theme Builder Settings"
+      ],
+      "compatiblePackages": {
+        "com.google.android.inputmethod.latin": [
+          "18.6.3.1002251336-release-arm64-v8a"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Keyboard Icon Packs",
+      "description": "Imports compatible .wmicons.zip icon packs from storage and overrides key icons.",
+      "use": true,
+      "dependencies": [
+        "Keyboard Icon Pack Settings"
+      ],
+      "compatiblePackages": {
+        "com.google.android.inputmethod.latin": [
+          "18.6.3.1002251336-release-arm64-v8a"
+        ]
+      },
+      "options": []
+    },
+    {
+      "name": "Multilingual Suggestion",
+      "description": "Promotes glide and typing suggestions written in a different script.",
+      "use": true,
+      "dependencies": [],
+      "compatiblePackages": {
+        "com.google.android.inputmethod.latin": [
+          "18.6.3.1002251336-release-arm64-v8a"
         ]
       },
       "options": []

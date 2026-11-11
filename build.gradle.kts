@@ -3,7 +3,9 @@ plugins {
 }
 
 group = "dev.custom.gboardpatches"
-version = "1.0.0"
+// Single source of truth: build.sh and the release workflow both read
+// gradle.properties, so the Gradle version must come from there too.
+version = providers.gradleProperty("version").get()
 
 repositories {
     mavenCentral()

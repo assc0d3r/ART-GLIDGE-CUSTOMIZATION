@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Build and Release Morphe Patch
@@ -36,20 +40,63 @@ jobs:
       - name: Make scripts executable
         run: chmod +x ./build.sh
 
+      # The tag is the single source of truth. build.sh names the bundle from
+      # gradle.properties, so the version is written there before building;
+      # otherwise the tag and the artifact name drift apart and the upload step
+      # silently publishes a release with no files.
+      - name: Resolve version from tag
+        id: tag_info
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME:-}"
+          if [[ -z "${TAG}" ]]; then
+            VERSION="$(grep -m1 '^version=' gradle.properties | cut -d'=' -f2 | tr -d ' ')"
+            TAG="v${VERSION}"
+            echo "::warning::No tag ref; building ${TAG} from gradle.properties."
+          elif [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            VERSION="${TAG#v}"
+          else
+            echo "::error::Tag '${TAG}' must match v<major>.<minor>.<patch>."
+            exit 1
+          fi
+          sed -i "s|^version=.*|version=${VERSION}|" gradle.properties
+          echo "== gradle.properties =="
+          grep -m1 '^version=' gradle.properties
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "TAG=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Build Patch Package (.mpp)
         run: ./build.sh
 
-      - name: Extract Release Tag Info
-        id: tag_info
+      # Anything shipped alongside the bundle must describe this release, not a
+      # stale checked-in value.
+      - name: Sync release metadata
         run: |
-          TAG="${GITHUB_REF_NAME:-v1.0.0}"
-          if [[ "${TAG}" =~ ^v[0-9] ]]; then
-            VERSION="${TAG#v}"
-          else
-            VERSION="$(grep -m1 '^version=' gradle.properties | cut -d'=' -f2 | tr -d ' ')"
-          fi
-          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "TAG=${TAG}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          VERSION="${{ steps.tag_info.outputs.VERSION }}"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/patches-${VERSION}.mpp"
+          jq --arg v "${VERSION}" --arg u "${URL}" \
+            '.version = $v | .download_url = $u' patches-bundle.json > patches-bundle.json.tmp
+          mv patches-bundle.json.tmp patches-bundle.json
+          jq --arg v "${VERSION}" '.version = $v' patches-list.json > patches-list.json.tmp
+          mv patches-list.json.tmp patches-list.json
+          echo "== patches-bundle.json =="
+          cat patches-bundle.json
+
+      # Fail loudly here instead of publishing an asset-less release.
+      - name: Verify release assets exist
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.tag_info.outputs.VERSION }}"
+          for asset in "dist/patches-${VERSION}.mpp" "dist/gboard-backspace-haptics.jar"; do
+            if [[ ! -f "${asset}" ]]; then
+              echo "::error::Missing release asset ${asset}"
+              ls -l dist || true
+              exit 1
+            fi
+          done
+          echo "== release assets =="
+          ls -l dist
 
       - name: Prepare Release Notes
         run: |
@@ -57,10 +104,19 @@ jobs:
           ### Gboard Enhancement Patches Suite
 
           #### ✨ Features
+          - **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization (fade speed, dynamic Rainbow RGB, color wheel, stroke thickness, and tail length decay).
           - **Backspace Repeat Haptic Feedback**: Delivers continuous tactile pulses on each repeated character deletion when holding down the backspace key (with empty text suppression and settings toggle).
           - **Enter Key Tasker Event**: Dispatches a high-priority Android Intent broadcast (`dev.custom.gboard.ENTER_PRESSED`) to Tasker whenever the Enter or IME action key is pressed, including active package, action type, and cursor text.
-          - **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization (fade speed, dynamic Rainbow RGB, color presets, stroke thickness, and tail length decay).
+          - **AMOLED Gboard Settings**: Pure-black settings rows for Gboard's preference screens.
+          - **Gboard Theme Builder**: In-app key colour, corner-radius and live preview editor, saved to and applied by the patch runtime.
+          - **Keyboard Icon Packs**: Imports `.wmicons.zip` packs from storage and overrides key icons.
+          - **Multilingual Suggestion**: Promotes glide and typing suggestions written in a different script.
           - **Morphe Independent Selection**: All patches can be individually enabled or combined together in Morphe Manager.
+
+          #### 🎯 Supported Gboard Versions
+          - `18.6.3.1002251336-release-arm64-v8a` (verified: all patches apply)
+          - `18.0.3.954559732-release-arm64-v8a`
+          - Any other version via the experimental target
 
           #### 📱 Add to Morphe App
           1. Open the **Morphe** app on your Android device.
@@ -79,6 +135,7 @@ jobs:
           name: Release ${{ steps.tag_info.outputs.TAG }}
           body_path: release-notes.md
           prerelease: false
+          fail_on_unmatched_files: true
           files: |
             dist/patches-${{ steps.tag_info.outputs.VERSION }}.mpp
             dist/gboard-backspace-haptics.jar
