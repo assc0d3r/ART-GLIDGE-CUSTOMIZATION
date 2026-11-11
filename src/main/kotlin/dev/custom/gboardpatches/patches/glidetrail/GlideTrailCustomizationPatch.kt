@@ -53,6 +53,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             packageName = "com.google.android.inputmethod.latin",
             targets = listOf(
                 AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
+                AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
                 AppTarget(version = "18.0.3"),
                 AppTarget(version = null, isExperimental = true)
             )
@@ -163,7 +164,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
                 invoke-static {v1}, Landroid/graphics/Color;->HSVToColor([F)I
                 move-result v0
-                invoke-virtual {p0, v0}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v0}, ${overlayClass.type}->c(I)V
 
                 :cond_check_time
                 # 2. Check SharedPreferences at most once every 500ms
@@ -283,7 +284,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
                 iget v2, p0, ${overlayClass.type}->morpheStockColor:I
                 if-eqz v2, :cond_skip_color
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v2}, ${overlayClass.type}->c(I)V
                 :cond_skip_color
 
                 return-void
@@ -307,13 +308,13 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
                 move-result v2
                 if-eqz v2, :cond_check_stock_color
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v2}, ${overlayClass.type}->c(I)V
                 goto :cond_speed_check
 
                 :cond_check_stock_color
                 iget v2, p0, ${overlayClass.type}->morpheStockColor:I
                 if-eqz v2, :cond_speed_check
-                invoke-virtual {p0, v2}, ${overlayClass.type}->b(I)V
+                invoke-virtual {p0, v2}, ${overlayClass.type}->c(I)V
 
                 # 3. Speed / Fade Duration Slider (ms)
                 :cond_speed_check
@@ -404,19 +405,20 @@ val glideTrailCustomizationPatch = bytecodePatch(
             )
         }
 
-        // 5. Hook GestureOverlayView.c(Context, AttributeSet)
+        // 5. Hook the overlay initialiser: `c(Context, AttributeSet)` in 18.0.3, `d(...)` in 18.6.3
         val initMethod = overlayClass.methods.firstOrNull { m ->
-            m.name == "c" && m.parameterTypes.size == 2 &&
+            (m.name == "c" || m.name == "d") && m.parameterTypes.size == 2 &&
             m.parameterTypes[0] == "Landroid/content/Context;" &&
             m.parameterTypes[1] == "Landroid/util/AttributeSet;"
-        } ?: error("Method c(Context, AttributeSet) not found in GestureOverlayView")
+        } ?: error("Overlay initialiser c/d(Context, AttributeSet) not found in GestureOverlayView")
 
         val initImpl = initMethod.implementation ?: error("No implementation in GestureOverlayView.c")
 
         // 5a. Save stock color before b(I)V call
         val bCallIndex = initImpl.instructions.indexOfLast { ins ->
             ins.opcode == Opcode.INVOKE_VIRTUAL &&
-            (ins as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)?.reference?.toString()?.contains("->b(I)V") == true
+            (ins as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)?.reference?.toString()
+                ?.let { it.contains("->b(I)V") || it.contains("->c(I)V") } == true
         }
         if (bCallIndex >= 0) {
             initMethod.addInstructions(
@@ -482,25 +484,30 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 m.parameterTypes[0] == "Ljava/util/List;" && m.parameterTypes[2] == "J"
             }
         }
+        // The 1000L fade constant lived in the gesture-path processor (`mvs.g`) in 18.0.3.
+        // 18.6.3 deleted that method (only `<init>` and `av(I)Lmvc;` remain), so the
+        // replacement is best-effort: apply it only when the legacy shape still exists.
         val mvsType = mvsField?.type ?: "Lmvs;"
-        val mvsClass = mutableClassDefBy(mvsType)
-        val gMethod = mvsClass.methods.firstOrNull { m ->
+        val mvsClass = mutableClassDefByOrNull(mvsType)
+        val gMethod = mvsClass?.methods?.firstOrNull { m ->
             m.name == "g" && m.returnType == "Z" && m.parameterTypes.size == 3 &&
             m.parameterTypes[0] == "Ljava/util/List;" && m.parameterTypes[2] == "J"
-        } ?: error("Method g not found in processor class $mvsType")
-
-        val gImpl = gMethod.implementation ?: error("No implementation in $mvsType.g")
-        val gInstructions = gImpl.instructions.toList()
-        val const1000Index = gInstructions.indexOfFirst { ins ->
-            ins.opcode == Opcode.CONST_WIDE_16 && (ins as? WideLiteralInstruction)?.wideLiteral == 1000L
         }
-        if (const1000Index >= 0) {
-            val ins = gInstructions[const1000Index] as OneRegisterInstruction
-            val targetReg = ins.registerA
-            gMethod.replaceInstruction(
-                const1000Index,
-                "sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J"
-            )
+
+        val gImpl = gMethod?.implementation
+        if (gMethod != null && gImpl != null) {
+            val gInstructions = gImpl.instructions.toList()
+            val const1000Index = gInstructions.indexOfFirst { ins ->
+                ins.opcode == Opcode.CONST_WIDE_16 && (ins as? WideLiteralInstruction)?.wideLiteral == 1000L
+            }
+            if (const1000Index >= 0) {
+                val ins = gInstructions[const1000Index] as OneRegisterInstruction
+                val targetReg = ins.registerA
+                gMethod.replaceInstruction(
+                    const1000Index,
+                    "sget-wide v$targetReg, ${overlayClass.type}->morpheFadeDuration:J"
+                )
+            }
         }
 
         // 8. Hook PreferenceFragmentCompat (cdr.aA) to handle custom preference clicks safely
@@ -543,6 +550,48 @@ val glideTrailCustomizationPatch = bytecodePatch(
                     :catch_summaries
                 """.trimIndent()
                 aBMethod.addInstructions(0, doeSummarySmali)
+            }
+        }
+
+        // 10. 18.6.3 replaces the obfuscated preference-fragment bases (cdr/doe) with
+        //     CommonPreferenceFragment: `p(Preference)` dispatches clicks and
+        //     `aH(int, PreferenceGroup)` loads a preference group.
+        val commonFragment = mutableClassDefByOrNull(
+            "Lcom/google/android/libraries/inputmethod/preferencewidgets/CommonPreferenceFragment;"
+        )
+        if (commonFragment != null) {
+            val clickMethod = commonFragment.methods.firstOrNull {
+                it.name == "p" && it.parameterTypes.size == 1 &&
+                it.parameterTypes[0].toString() == "Landroidx/preference/Preference;"
+            }
+            if (clickMethod != null) {
+                val clickSmali = """
+                    :try_start_click
+                    invoke-static {p1}, Ldev/custom/gboardpatches/ui/GlideTrailPreferences;->onPreferenceClick(Ljava/lang/Object;)Z
+                    move-result v0
+                    if-eqz v0, :cond_click_orig
+                    return-void
+                    :cond_click_orig
+                    :try_end_click
+                    .catch Ljava/lang/Throwable; {:try_start_click .. :try_end_click} :catch_click
+                    :catch_click
+                """.trimIndent()
+                clickMethod.addInstructions(0, clickSmali)
+            }
+
+            val groupMethod = commonFragment.methods.firstOrNull {
+                it.name == "aH" && it.parameterTypes.size == 2 &&
+                it.parameterTypes[1].toString() == "Landroidx/preference/PreferenceGroup;"
+            }
+            if (groupMethod != null) {
+                val summariesSmali = """
+                    :try_start_sum
+                    invoke-static {p2}, Ldev/custom/gboardpatches/ui/GlideTrailPreferences;->initSummaries(Ljava/lang/Object;)V
+                    :try_end_sum
+                    .catch Ljava/lang/Throwable; {:try_start_sum .. :try_end_sum} :catch_sum
+                    :catch_sum
+                """.trimIndent()
+                groupMethod.addInstructions(0, summariesSmali)
             }
         }
     }

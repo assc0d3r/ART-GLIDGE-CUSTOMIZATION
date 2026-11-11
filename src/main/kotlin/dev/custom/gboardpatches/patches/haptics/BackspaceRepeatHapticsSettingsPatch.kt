@@ -23,6 +23,7 @@ val backspaceRepeatHapticsSettingsPatch = resourcePatch(
             packageName = "com.google.android.inputmethod.latin",
             targets = listOf(
                 AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
+                AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
                 AppTarget(version = "18.0.3"),
                 AppTarget(version = null, isExperimental = true)
             )
@@ -55,16 +56,18 @@ internal fun applySettingsPatch(document: Document) {
     val allElements = getAllElements(root)
     for (el in allElements) {
         val key = el.getAndroidAttr("key")
-        if (key.contains("0x7f140b95") || key.contains("vibration_duration")) {
+        // 18.6.3 ids: vibrate-on-keypress is 0x7f140c9f, Key tap category is 0x7f140be2/0x7f140be3.
+        if (key.contains("0x7f140b95") || key.contains("0x7f140c9f") || key.contains("vibration_duration")) {
             vibrationDurationPref = el
         }
-        if (key.contains("0x7f140a2e") || key.contains("vibrate_on_keypress")) {
+        if (key.contains("0x7f140a2e") || key.contains("0x7f140c9f") || key.contains("vibrate_on_keypress")) {
             vibrationSwitchPref = el
         }
         if (el.tagName.endsWith("PreferenceCategory")) {
-            if (key.contains("0x7f140cf3") || key.contains("key_press") ||
+            if (key.contains("0x7f140cf3") || key.contains("0x7f140be2") || key.contains("key_press") ||
                 el.getAndroidAttr("title").contains("Key tap") ||
-                el.getAndroidAttr("title").contains("0x7f140cf4")
+                el.getAndroidAttr("title").contains("0x7f140cf4") ||
+                el.getAndroidAttr("title").contains("0x7f140be3")
             ) {
                 keyTapCategory = el
             }

@@ -23,6 +23,7 @@ val enterKeyTaskerEventSettingsPatch = resourcePatch(
             packageName = "com.google.android.inputmethod.latin",
             targets = listOf(
                 AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
+                AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
                 AppTarget(version = "18.0.3"),
                 AppTarget(version = null, isExperimental = true)
             )
@@ -55,9 +56,11 @@ internal fun applyEnterKeySettingsPatch(document: Document) {
     for (el in allElements) {
         val key = el.getAndroidAttr("key")
         if (el.tagName.endsWith("PreferenceCategory")) {
-            if (key.contains("0x7f140cf3") || key.contains("key_press") ||
+            // 18.6.3: Key tap category is keyed 0x7f140be2 with title 0x7f140be3.
+            if (key.contains("0x7f140cf3") || key.contains("0x7f140be2") || key.contains("key_press") ||
                 el.getAndroidAttr("title").contains("Key tap") ||
-                el.getAndroidAttr("title").contains("0x7f140cf4")
+                el.getAndroidAttr("title").contains("0x7f140cf4") ||
+                el.getAndroidAttr("title").contains("0x7f140be3")
             ) {
                 keyTapCategory = el
             }
