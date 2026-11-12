@@ -27,6 +27,7 @@ val amoledSettingsPatch = bytecodePatch(
             packageName = "com.google.android.inputmethod.latin",
             targets = listOf(
                 AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
+                AppTarget(version = "18.5.4.993608717-release-arm64-v8a"),
                 AppTarget(version = null, isExperimental = true)
             )
         )
@@ -41,8 +42,8 @@ val amoledSettingsPatch = bytecodePatch(
             method.name == "a" &&
                 method.returnType == "V" &&
                 method.parameterTypes.size == 1 &&
-                method.parameterTypes[0] == "Lcew;"
-        } ?: error("Gboard preference row-binding method a(Lcew;)V not found.")
+                !method.parameterTypes[0].startsWith("Landroid")
+        } ?: error("Gboard preference row-binding method a(<holder>)V not found.")
 
         val implementation = bindMethod.implementation
             ?: error("Gboard preference row-binding method has no implementation.")

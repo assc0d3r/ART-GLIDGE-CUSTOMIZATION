@@ -22,6 +22,7 @@ val gboardThemeStudioPatch = bytecodePatch(
             packageName = "com.google.android.inputmethod.latin",
             targets = listOf(
                 AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
+                AppTarget(version = "18.5.4.993608717-release-arm64-v8a"),
                 AppTarget(version = null, isExperimental = true)
             )
         )
@@ -51,31 +52,33 @@ val gboardThemeStudioPatch = bytecodePatch(
         val preferenceFragment = mutableClassDefByOrNull(COMMON_PREFERENCE_FRAGMENT)
             ?: error("Gboard CommonPreferenceFragment class not found.")
 
-        val groupInit = preferenceFragment.methods.firstOrNull { method ->
-            method.name == "aH" &&
-                method.returnType == "V" &&
+        val groupInits = preferenceFragment.methods.filter { method ->
+            method.returnType == "V" &&
                 method.parameterTypes.size == 2 &&
+                method.parameterTypes[0] == "I" &&
                 method.parameterTypes[1] == "Landroidx/preference/PreferenceGroup;"
-        } ?: error("Gboard preference-group initialization method not found.")
+        }
+        if (groupInits.isEmpty()) error("Gboard preference-group initialization method not found.")
 
-        // Hook after the XML has been inflated into the group, so the Theme Builder
-        // preference already exists when the runtime looks it up.
-        val groupImpl = groupInit.implementation
-            ?: error("Gboard preference-group initialization has no implementation.")
-        val returnIndexes = groupImpl.instructions
-            .withIndex()
-            .filter { it.value.opcode == Opcode.RETURN_VOID }
-            .map { it.index }
-        if (returnIndexes.isEmpty()) error("Preference-group initialization has no return.")
+        // Hook every (int, PreferenceGroup) loader after the XML has been inflated into the
+        // group, so the Theme Builder preference already exists when the runtime looks it up.
+        // 18.5.4 splits this across aJ and aZ, so all matches are required.
+        groupInits.forEach { groupInit ->
+            val groupImpl = groupInit.implementation ?: return@forEach
+            val returnIndexes = groupImpl.instructions
+                .withIndex()
+                .filter { it.value.opcode == Opcode.RETURN_VOID }
+                .map { it.index }
 
-        returnIndexes.asReversed().forEach { returnIndex ->
-            groupInit.injectStaticCallOnParamType(
-                hookOwner = THEME_RUNTIME,
-                hookName = "initializePreferences",
-                hookParameterTypes = listOf("Ljava/lang/Object;"),
-                targetType = "Landroidx/preference/PreferenceGroup;",
-                atIndex = returnIndex
-            )
+            returnIndexes.asReversed().forEach { returnIndex ->
+                groupInit.injectStaticCallOnParamType(
+                    hookOwner = THEME_RUNTIME,
+                    hookName = "initializePreferences",
+                    hookParameterTypes = listOf("Ljava/lang/Object;"),
+                    targetType = "Landroidx/preference/PreferenceGroup;",
+                    atIndex = returnIndex
+                )
+            }
         }
     }
 }

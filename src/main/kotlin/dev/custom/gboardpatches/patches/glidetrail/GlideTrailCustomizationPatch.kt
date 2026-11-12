@@ -5,6 +5,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.Compatibility
 import app.morphe.patcher.patch.bytecodePatch
+import dev.custom.gboardpatches.patches.extras.injectStaticCallOnParamType
 import app.morphe.patcher.util.proxy.mutableTypes.MutableField.Companion.toMutable
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -54,6 +55,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
             targets = listOf(
                 AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
                 AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
+                AppTarget(version = "18.5.4.993608717-release-arm64-v8a"),
                 AppTarget(version = "18.0.3"),
                 AppTarget(version = null, isExperimental = true)
             )
@@ -64,6 +66,23 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
     execute {
         val overlayClass = mutableClassDefBy("Lcom/google/android/apps/inputmethod/libs/gestureui/GestureOverlayView;")
+
+        // The trail colour setter is b(I)V on 18.5.4 and c(I)V on 18.6.3, so resolve it from the
+        // initialiser instead of hardcoding one name.
+        val colorSetterName = overlayClass.methods
+            .firstOrNull { m ->
+                (m.name == "c" || m.name == "d") && m.parameterTypes.size == 2 &&
+                    m.parameterTypes[0] == "Landroid/content/Context;" &&
+                    m.parameterTypes[1] == "Landroid/util/AttributeSet;"
+            }
+            ?.implementation?.instructions
+            ?.mapNotNull {
+                (it as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
+                    ?.reference?.toString()
+            }
+            ?.firstOrNull { it.endsWith("->b(I)V") || it.endsWith("->c(I)V") }
+            ?.let { it.substringAfterLast("->").substringBefore("(I)V") }
+            ?: "c"
 
         // 1. Add fields to GestureOverlayView
         fun addFieldIfMissing(
@@ -164,7 +183,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
                 invoke-static {v1}, Landroid/graphics/Color;->HSVToColor([F)I
                 move-result v0
-                invoke-virtual {p0, v0}, ${overlayClass.type}->c(I)V
+                invoke-virtual {p0, v0}, ${overlayClass.type}->$colorSetterName(I)V
 
                 :cond_check_time
                 # 2. Check SharedPreferences at most once every 500ms
@@ -284,7 +303,7 @@ val glideTrailCustomizationPatch = bytecodePatch(
 
                 iget v2, p0, ${overlayClass.type}->morpheStockColor:I
                 if-eqz v2, :cond_skip_color
-                invoke-virtual {p0, v2}, ${overlayClass.type}->c(I)V
+                invoke-virtual {p0, v2}, ${overlayClass.type}->$colorSetterName(I)V
                 :cond_skip_color
 
                 return-void
@@ -308,13 +327,13 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 invoke-interface {v1, v2, v3}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
                 move-result v2
                 if-eqz v2, :cond_check_stock_color
-                invoke-virtual {p0, v2}, ${overlayClass.type}->c(I)V
+                invoke-virtual {p0, v2}, ${overlayClass.type}->$colorSetterName(I)V
                 goto :cond_speed_check
 
                 :cond_check_stock_color
                 iget v2, p0, ${overlayClass.type}->morpheStockColor:I
                 if-eqz v2, :cond_speed_check
-                invoke-virtual {p0, v2}, ${overlayClass.type}->c(I)V
+                invoke-virtual {p0, v2}, ${overlayClass.type}->$colorSetterName(I)V
 
                 # 3. Speed / Fade Duration Slider (ms)
                 :cond_speed_check
@@ -579,19 +598,18 @@ val glideTrailCustomizationPatch = bytecodePatch(
                 clickMethod.addInstructions(0, clickSmali)
             }
 
-            val groupMethod = commonFragment.methods.firstOrNull {
-                it.name == "aH" && it.parameterTypes.size == 2 &&
+            val groupMethods = commonFragment.methods.filter {
+                it.returnType == "V" && it.parameterTypes.size == 2 && it.parameterTypes[0] == "I" &&
                 it.parameterTypes[1].toString() == "Landroidx/preference/PreferenceGroup;"
             }
-            if (groupMethod != null) {
-                val summariesSmali = """
-                    :try_start_sum
-                    invoke-static {p2}, Ldev/custom/gboardpatches/ui/GlideTrailPreferences;->initSummaries(Ljava/lang/Object;)V
-                    :try_end_sum
-                    .catch Ljava/lang/Throwable; {:try_start_sum .. :try_end_sum} :catch_sum
-                    :catch_sum
-                """.trimIndent()
-                groupMethod.addInstructions(0, summariesSmali)
+            // 18.5.4 has two group loaders (aJ/aZ), so hook every (int, PreferenceGroup) match.
+            for (groupMethod in groupMethods) {
+                groupMethod.injectStaticCallOnParamType(
+                    hookOwner = "Ldev/custom/gboardpatches/ui/GlideTrailPreferences;",
+                    hookName = "initSummaries",
+                    hookParameterTypes = listOf("Ljava/lang/Object;"),
+                    targetType = "Landroidx/preference/PreferenceGroup;"
+                )
             }
         }
     }

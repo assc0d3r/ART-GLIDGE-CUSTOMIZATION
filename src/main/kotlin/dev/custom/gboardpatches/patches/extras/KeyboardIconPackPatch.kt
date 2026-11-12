@@ -21,6 +21,7 @@ val keyboardIconPackPatch = bytecodePatch(
             packageName = "com.google.android.inputmethod.latin",
             targets = listOf(
                 AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
+                AppTarget(version = "18.5.4.993608717-release-arm64-v8a"),
                 AppTarget(version = null, isExperimental = true)
             )
         )
@@ -51,18 +52,22 @@ val keyboardIconPackPatch = bytecodePatch(
         val preferenceFragment = mutableClassDefByOrNull(COMMON_PREFERENCE_FRAGMENT)
             ?: error("Gboard CommonPreferenceFragment class not found.")
 
-        val groupInit = preferenceFragment.methods.firstOrNull { method ->
-            method.name == "aH" &&
-                method.returnType == "V" &&
+        val groupInits = preferenceFragment.methods.filter { method ->
+            method.returnType == "V" &&
                 method.parameterTypes.size == 2 &&
+                method.parameterTypes[0] == "I" &&
                 method.parameterTypes[1] == "Landroidx/preference/PreferenceGroup;"
-        } ?: error("Gboard preference-group initialization method not found.")
+        }
+        if (groupInits.isEmpty()) error("Gboard preference-group initialization method not found.")
 
-        groupInit.injectStaticCallOnParamType(
-            hookOwner = ICON_RUNTIME,
-            hookName = "initializePreferences",
-            hookParameterTypes = listOf("Ljava/lang/Object;"),
-            targetType = "Landroidx/preference/PreferenceGroup;"
-        )
+        // 18.5.4 exposes two loaders (aJ/aZ); hook all of them, not just the first match.
+        groupInits.forEach { groupInit ->
+            groupInit.injectStaticCallOnParamType(
+                hookOwner = ICON_RUNTIME,
+                hookName = "initializePreferences",
+                hookParameterTypes = listOf("Ljava/lang/Object;"),
+                targetType = "Landroidx/preference/PreferenceGroup;"
+            )
+        }
     }
 }

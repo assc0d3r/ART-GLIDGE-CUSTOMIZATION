@@ -36,6 +36,7 @@ val glideTrailSettingsPatch = resourcePatch(
             targets = listOf(
                 AppTarget(version = "18.0.3.954559732-release-arm64-v8a"),
                 AppTarget(version = "18.6.3.1002251336-release-arm64-v8a"),
+                AppTarget(version = "18.5.4.993608717-release-arm64-v8a"),
                 AppTarget(version = "18.0.3"),
                 AppTarget(version = null, isExperimental = true)
             )
@@ -68,6 +69,7 @@ internal fun applyGlideTrailSettingsPatch(document: Document) {
         // 18.0.3 used 0x7f140a54; Gboard 18.6.3 moved the same "Glide trail"
         // preference to 0x7f140980 (string value remains pref_gesture_preview_trail).
         if (key.contains("0x7f140a54") || key.contains("0x7f140980") ||
+            key.contains("0x7f140999") ||
             key.contains("pref_gesture_preview_trail")
         ) {
             gestureTrailPref = el
