@@ -46,7 +46,8 @@ val gboardThemeStudioPatch = bytecodePatch(
             hookName = "applyKey",
             hookParameterTypes = listOf("Landroid/view/View;", "Ljava/lang/Object;"),
             firstParam = 0,
-            paramCount = 2
+            paramCount = 2,
+            includeReceiver = true
         )
 
         val preferenceFragment = mutableClassDefByOrNull(COMMON_PREFERENCE_FRAGMENT)

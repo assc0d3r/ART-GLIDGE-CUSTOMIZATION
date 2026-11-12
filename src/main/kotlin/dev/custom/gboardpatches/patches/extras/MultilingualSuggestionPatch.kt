@@ -46,7 +46,8 @@ val multilingualSuggestionPatch = bytecodePatch(
             hookName = "applyToView",
             hookParameterTypes = listOf("Landroid/view/View;", "Ljava/util/List;"),
             firstParam = 0,
-            paramCount = 2
+            paramCount = 2,
+            includeReceiver = true
         )
     }
 }

@@ -18,12 +18,23 @@ public final class AmoledSettingsRuntime {
 
     public static void applyPreference(Object preference, Object holder) {
         try {
-            View itemView = resolveItemView(holder);
+            final View itemView = resolveItemView(holder);
             if (itemView == null) {
                 return;
             }
-            itemView.setBackgroundColor(Color.BLACK);
-            tint(itemView);
+            // Hooked at method entry, where the holder parameter register is still typed as the
+            // holder rather than a reused local. Posting keeps the recolor happening after the
+            // row has finished binding, which is what the old return-site hook relied on.
+            itemView.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        itemView.setBackgroundColor(Color.BLACK);
+                        tint(itemView);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
         } catch (Throwable ignored) {
         }
     }

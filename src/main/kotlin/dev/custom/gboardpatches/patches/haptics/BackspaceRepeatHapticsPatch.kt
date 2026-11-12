@@ -52,6 +52,22 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
         val softKeyViewField = PressEffectPlayerFinder.findSoftKeyViewFieldName(ownerClass)
         val playerBindings = PressEffectPlayerFinder.findPressEffectPlayer(ownerClass)
 
+        // The ActionDef key accessor is renamed and re-typed on every release (18.0.3: Lpnu;,
+        // 18.6.3: Lpva;, 18.5.4: Lqbc;), so resolve both the getter and its keycode field here
+        // instead of pinning a signature that only matches the build the patch was written for.
+        val actionDefType = "Lcom/google/android/libraries/inputmethod/metadata/ActionDef;"
+        val actionDefClass = mutableClassDefByOrNull(actionDefType)
+            ?: error("Gboard ActionDef class not found.")
+        val keyGetter = actionDefClass.methods.firstOrNull {
+            it.name == "b" && it.parameterTypes.isEmpty() && it.returnType.startsWith("L")
+        } ?: error("Gboard ActionDef key getter not found.")
+        val keyType = keyGetter.returnType
+        val keyClass = mutableClassDefByOrNull(keyType)
+            ?: error("Gboard ActionDef key type $keyType not found.")
+        val keycodeField = keyClass.fields.firstOrNull { it.name == "c" && it.type == "I" }?.name
+            ?: keyClass.fields.firstOrNull { it.type == "I" }?.name
+            ?: error("Gboard key type $keyType has no int keycode field.")
+
         val helperMethodName = "morpheBackspaceRepeatHaptic"
         val helperMethodExists = ownerClass.methods.any { it.name == helperMethodName }
 
@@ -73,10 +89,10 @@ val backspaceRepeatHapticsPatch = bytecodePatch(
 
             val helperBody = """
                 if-eqz p1, :cond_return
-                invoke-virtual {p1}, Lcom/google/android/libraries/inputmethod/metadata/ActionDef;->b()Lpnu;
+                invoke-virtual {p1}, $actionDefType->b()$keyType
                 move-result-object v0
                 if-eqz v0, :cond_return
-                iget v1, v0, Lpnu;->c:I
+                iget v1, v0, ${keyType}->$keycodeField:I
                 const/16 v2, 0x43
                 if-ne v1, v2, :cond_return
                 iget-object v0, p0, ${ownerClass.type}->$softKeyViewField:Lcom/google/android/libraries/inputmethod/widgets/SoftKeyView;

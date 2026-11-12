@@ -45,22 +45,18 @@ val amoledSettingsPatch = bytecodePatch(
                 !method.parameterTypes[0].startsWith("Landroid")
         } ?: error("Gboard preference row-binding method a(<holder>)V not found.")
 
-        val implementation = bindMethod.implementation
+        bindMethod.implementation
             ?: error("Gboard preference row-binding method has no implementation.")
 
-        val returnIndexes = implementation.instructions
-            .withIndex()
-            .filter { it.value.opcode == Opcode.RETURN_VOID }
-            .map { it.index }
-        if (returnIndexes.isEmpty()) error("Gboard preference row-binding method has no return.")
-
-        returnIndexes.asReversed().forEach { returnIndex ->
-            bindMethod.addInstructions(
-                returnIndex,
-                """
-                invoke-static {p0, p1}, $AMOLED_RUNTIME->applyPreference(Ljava/lang/Object;Ljava/lang/Object;)V
-                """.trimIndent()
-            )
-        }
+        // Hook at entry, not at RETURN_VOID: the holder parameter register is re-used as a
+        // boolean later in the method, so referencing p1 near the returns fails dex verification
+        // ("register v10 has type Boolean but expected Reference Object"). The runtime posts the
+        // recolor to the row view, so it still lands after binding completes.
+        bindMethod.addInstructions(
+            0,
+            """
+            invoke-static {p0, p1}, $AMOLED_RUNTIME->applyPreference(Ljava/lang/Object;Ljava/lang/Object;)V
+            """.trimIndent()
+        )
     }
 }

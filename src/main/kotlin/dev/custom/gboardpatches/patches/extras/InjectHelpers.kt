@@ -18,7 +18,8 @@ private fun mutableMethod(method: MutableMethod) = method
  * compiler, so the injection works even on obfuscated call sites the compiler rejects.
  *
  * [firstParam] is a parameter index (0 = p0), and the call is emitted as a range invoke so
- * high register numbers stay valid.
+ * high register numbers stay valid. Set [includeReceiver] to start the window at `this`
+ * (instance methods only), which is what hooks wanting the view plus its argument need.
  */
 internal fun MutableMethod.injectStaticCall(
     hookOwner: String,
@@ -27,16 +28,22 @@ internal fun MutableMethod.injectStaticCall(
     hookReturnType: String = "V",
     firstParam: Int = 0,
     paramCount: Int = 1,
-    atIndex: Int = 0
+    atIndex: Int = 0,
+    includeReceiver: Boolean = false
 ) {
     val target = mutableMethod(this)
     val implementation = target.implementation
         ?: error("Cannot hook ${target.name}: method has no implementation.")
 
     val isStatic = (target.accessFlags and AccessFlags.STATIC.value) != 0
+    require(!includeReceiver || !isStatic) {
+        "${target.name} is static and has no receiver register."
+    }
     val declaredWidth = target.parameterTypes.sumOf { registerWidth(it) }
+    // Dex layout is [locals][this][p0..pN], so p0 sits at registerCount - declaredWidth for
+    // both static and instance methods, and `this` one register below it.
     val firstParameterRegister = implementation.registerCount - declaredWidth -
-        if (isStatic) 0 else 1
+        if (includeReceiver) 1 else 0
     val start = firstParameterRegister + firstParam
 
     require(firstParam >= 0) { "Parameter index must not be negative." }
