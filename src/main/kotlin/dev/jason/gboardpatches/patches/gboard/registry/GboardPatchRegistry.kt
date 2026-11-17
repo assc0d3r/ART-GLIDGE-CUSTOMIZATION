@@ -60,6 +60,15 @@ import dev.jason.gboardpatches.patches.gboard.features.featureflags.gboardKeySha
 import dev.jason.gboardpatches.patches.gboard.features.featureflags.gboardKeyShapeSelectionFlagValuePatch
 import dev.jason.gboardpatches.patches.gboard.features.lanftp.gboardLanFtpFeatureMarkerPatch
 import dev.jason.gboardpatches.patches.gboard.features.lanftp.gboardLanFtpManifestPatch
+import dev.jason.gboardpatches.patches.gboard.features.immersive.gboardEmojiKeyOnRightPatch
+import dev.jason.gboardpatches.patches.gboard.features.immersive.gboardGlassPanelPatch
+import dev.jason.gboardpatches.patches.gboard.features.immersive.gboardGlassPressEffectPatch
+import dev.jason.gboardpatches.patches.gboard.features.immersive.gboardImmersiveKeyboardPatch
+import dev.jason.gboardpatches.patches.gboard.features.immersive.gboardKeyMapperWatchdogPatch
+import dev.jason.gboardpatches.patches.gboard.features.immersive.gboardThemeFollowsDarkModePatch
+import dev.jason.gboardpatches.patches.gboard.features.immersive.gboardTranslucentBottomBarPatch
+import dev.jason.gboardpatches.patches.gboard.features.ioslayout.gboardIosFlickLayoutPatch
+import dev.jason.gboardpatches.patches.gboard.features.ioslayout.gboardIosQwertyLayoutPatch
 import dev.jason.gboardpatches.patches.gboard.features.latinglobe.gboardLatinGlobeKeyIgnoreIntervalBytecodePatch
 import dev.jason.gboardpatches.patches.gboard.features.latinglobe.gboardLatinGlobeKeyIgnoreIntervalFeatureMarkerPatch
 import dev.jason.gboardpatches.patches.gboard.features.longpressquickactions.gboardLongPressQuickActionsFeatureMarkerPatch
@@ -795,6 +804,123 @@ val gboardSimpleCalculatorPatch = gboardDirectResourcePatch(
     )
 }
 
+// The iOS layouts are resource-only patches: they replace keyboard definition XML and the layouts it
+// includes. The keyboard-definition cache keeps the parsed definitions across updates, so both
+// depend on the cache refresh to show up on an update of an already patched install.
+@Suppress("unused")
+val gboardIosQwertyLayoutPublicPatch = gboardDirectResourcePatch(
+    name = "iOS QWERTY layout",
+    description = "Puts the globe key of the letter keyboards at the bottom left, where it is on the " +
+        "Japanese 12-key keyboards, and lays out the English symbol keyboard like the iOS \"123\" and " +
+        "\"#+=\" pages. Gboard's number row setting keeps working.",
+    default = false,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardIosQwertyLayoutPatch)
+}
+
+@Suppress("unused")
+val gboardIosFlickLayoutPublicPatch = gboardDirectResourcePatch(
+    name = "iOS flick layout",
+    description = "Changes the Japanese 12-key keyboard to the layout of iOS with \"flick only\" enabled: " +
+        "123, ABC and あいう keys and the globe key on the left, and backspace, space and a two-row " +
+        "enter key on the right.",
+    default = false,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardIosFlickLayoutPatch)
+}
+
+// Ported from JacksonJones2003/immersive-keyboard-patches (GPLv3). The drawing and theme hooks
+// live in that project's runtime extension, bundled here as extensions/immersive-keyboard.mpe.
+@Suppress("unused")
+val gboardImmersiveKeyboardPublicPatch = gboardDirectResourcePatch(
+    name = "Immersive Keyboard",
+    description = "Extends the keyboard under the camera cutout in landscape instead of leaving " +
+        "an empty strip beside it.",
+    default = true,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardImmersiveKeyboardPatch)
+}
+
+@Suppress("unused")
+val gboardEmojiKeyOnRightPublicPatch = gboardDirectResourcePatch(
+    name = "Emoji Key On Right",
+    description = "Moves the dedicated emoji key from the left of the spacebar to just left of " +
+        "the enter / search key.",
+    default = true,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardEmojiKeyOnRightPatch)
+}
+
+@Suppress("unused")
+val gboardTranslucentBottomBarPublicPatch = gboardDirectResourcePatch(
+    name = "Translucent Bottom Bar",
+    description = "Makes the bar under the keyboard (behind the globe and close buttons) match the " +
+        "keyboard's color, opacity and blur, for use with transparent themes such as Frosted Glass.",
+    default = true,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardTranslucentBottomBarPatch)
+}
+
+@Suppress("unused")
+val gboardGlassPanelPublicPatch = gboardDirectResourcePatch(
+    name = "Glass Panel",
+    description = "Turns the translucent keyboard panel into glass, with the system's own glass " +
+        "material on vivo OriginOS and lit edges and a sheen elsewhere. Keys are left as they are. " +
+        "Works on top of Translucent Bottom Bar and Frosted Glass.",
+    default = true,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardGlassPanelPatch)
+}
+
+@Suppress("unused")
+val gboardGlassPressEffectPublicPatch = gboardDirectResourcePatch(
+    name = "Glass Press Effect",
+    description = "Adds vivo-style liquid glass touch feedback: a soft light blooms out from your " +
+        "finger across the keyboard background, and the keys around your finger dip and spring back.",
+    default = true,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardGlassPressEffectPatch)
+}
+
+@Suppress("unused")
+val gboardThemeFollowsDarkModePublicPatch = gboardDirectResourcePatch(
+    name = "Theme Follows Dark Mode",
+    description = "Adds a \"Light & dark pair\" menu to the top of Gboard's Themes screen, so the " +
+        "keyboard switches theme when the system dark mode changes. It can switch the wallpaper " +
+        "between a light and a dark image too.",
+    default = true,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardThemeFollowsDarkModePatch)
+}
+
+@Suppress("unused")
+val gboardKeyMapperWatchdogPublicPatch = gboardDirectResourcePatch(
+    name = "Key Mapper Watchdog",
+    description = "Uses Shizuku to restart Key Mapper's Expert Mode system bridge when it stops. " +
+        "Lets Gboard run shell commands, so only use it if you want this.",
+    default = false,
+) {
+    compatibleWith(COMPATIBILITY_GBOARD)
+
+    dependsOn(gboardKeyMapperWatchdogPatch)
+}
+
 object GboardPublishedPatchCatalog {
     val morpheRegistrations: Set<Patch> = linkedSetOf(
         gboardZhuyinSlideInputPatch,
@@ -827,6 +953,15 @@ object GboardPublishedPatchCatalog {
         gboardSettingsHomepagePatch,
         gboardLatinGlobeKeyIgnoreIntervalPatch,
         gboardZhuyinBottomRowWeightPatch,
+        gboardIosQwertyLayoutPublicPatch,
+        gboardIosFlickLayoutPublicPatch,
+        gboardImmersiveKeyboardPublicPatch,
+        gboardEmojiKeyOnRightPublicPatch,
+        gboardTranslucentBottomBarPublicPatch,
+        gboardGlassPanelPublicPatch,
+        gboardGlassPressEffectPublicPatch,
+        gboardThemeFollowsDarkModePublicPatch,
+        gboardKeyMapperWatchdogPublicPatch,
     ).filterTo(linkedSetOf()) { patch -> patch.name != null }
 
     fun publishedInventory(version: String): String {
