@@ -2,6 +2,7 @@ package dev.custom.gboardpatches.patches.extras
 
 import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.Compatibility
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.Opcode
 
@@ -48,6 +49,24 @@ val gboardThemeStudioPatch = bytecodePatch(
             firstParam = 0,
             paramCount = 2,
             includeReceiver = true
+        )
+
+        // Wire the Theme Builder row when it is bound. The group-init hook does not fire for every
+        // page that hosts the entry, and Gboard's Preference exposes no listener setter, so the
+        // click has to be attached to the bound row view instead.
+        val preferenceClass = mutableClassDefByOrNull("Landroidx/preference/Preference;")
+            ?: error("AndroidX Preference class not found in Gboard.")
+        val bindRow = preferenceClass.methods.firstOrNull { method ->
+            method.returnType == "V" &&
+                method.parameterTypes.size == 1 &&
+                method.parameterTypes[0].startsWith("L") &&
+                !method.parameterTypes[0].startsWith("Landroid")
+        } ?: error("Gboard preference row-binding method a(<holder>)V not found.")
+        bindRow.addInstructions(
+            0,
+            """
+            invoke-static {p0, p1}, $THEME_RUNTIME->applyRow(Ljava/lang/Object;Ljava/lang/Object;)V
+            """.trimIndent()
         )
 
         val preferenceFragment = mutableClassDefByOrNull(COMMON_PREFERENCE_FRAGMENT)

@@ -42,6 +42,7 @@ val amoledSettingsPatch = bytecodePatch(
             method.name == "a" &&
                 method.returnType == "V" &&
                 method.parameterTypes.size == 1 &&
+                method.parameterTypes[0].startsWith("L") &&
                 !method.parameterTypes[0].startsWith("Landroid")
         } ?: error("Gboard preference row-binding method a(<holder>)V not found.")
 

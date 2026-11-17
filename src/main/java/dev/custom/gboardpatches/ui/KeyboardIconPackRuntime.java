@@ -1,9 +1,9 @@
 package dev.custom.gboardpatches.ui;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
-import android.os.Environment;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -16,16 +16,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Loads WMKeyboard-compatible raster icon packs from
- * /sdcard/Gboard/icons/ and applies them to key views.
+ * Loads WMKeyboard-compatible raster icon packs imported through the Theme Builder.
  *
- * The importer screen writes the chosen pack to {@link #ACTIVE_PACK_FILE}; if that file is
- * absent the first *.wmicons.zip found in the directory is used instead.
+ * Packs live in the app's own files directory, so no storage permission is needed on any
+ * Android version. The importer writes the chosen pack to {@link #ACTIVE_PACK_FILE} and the
+ * original file name to {@link #ACTIVE_NAME_FILE}; if the pack is absent the first
+ * *.wmicons.zip in the directory is used instead.
  */
 public final class KeyboardIconPackRuntime {
 
-    public static final String PACK_DIR = "Gboard/icons";
+    public static final String PACK_DIR = "iconpacks";
     public static final String ACTIVE_PACK_FILE = "active.wmicons.zip";
+    public static final String ACTIVE_NAME_FILE = "active.name";
 
     private static final Map<String, Bitmap> CACHE = new HashMap<String, Bitmap>();
     private static boolean loaded = false;
@@ -34,8 +36,16 @@ public final class KeyboardIconPackRuntime {
     private KeyboardIconPackRuntime() {
     }
 
+    /** Called from Gboard's preference-group init hook; icon packs need no preference wiring. */
     public static void initializePreferences(Object preferenceGroup) {
-        // No preference wiring is required for icon packs yet.
+    }
+
+    public static File packDirectory(Context context) {
+        return new File(context.getFilesDir(), PACK_DIR);
+    }
+
+    public static File activePackFile(Context context) {
+        return new File(packDirectory(context), ACTIVE_PACK_FILE);
     }
 
     /** Drops the cached bitmaps so a newly imported pack takes effect immediately. */
@@ -45,26 +55,40 @@ public final class KeyboardIconPackRuntime {
         activePackName = null;
     }
 
-    public static synchronized int iconCount() {
-        ensureLoaded();
+    public static synchronized int iconCount(Context context) {
+        ensureLoaded(context);
         return CACHE.size();
     }
 
-    public static synchronized String activePackName() {
-        ensureLoaded();
+    public static synchronized String activePackName(Context context) {
+        ensureLoaded(context);
         return activePackName;
     }
 
-    public static File packDirectory() {
-        return new File(Environment.getExternalStorageDirectory(), PACK_DIR);
-    }
-
-    public static void applyIcon(View keyView, Object softKeyDef) {
+    public static void applyIcon(final View keyView, Object softKeyDef) {
         try {
             if (keyView == null) {
                 return;
             }
-            ensureLoaded();
+            final Context context = keyView.getContext();
+            if (context == null) {
+                return;
+            }
+            // The hook runs at the start of the key's render method, which sets the stock icon
+            // afterwards, so the pack icon is applied once that pass has finished.
+            keyView.post(new Runnable() {
+                @Override
+                public void run() {
+                    applyIconNow(keyView, context);
+                }
+            });
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void applyIconNow(View keyView, Context context) {
+        try {
+            ensureLoaded(context);
             if (CACHE.isEmpty()) {
                 return;
             }
@@ -95,13 +119,13 @@ public final class KeyboardIconPackRuntime {
         }
     }
 
-    private static synchronized void ensureLoaded() {
+    private static synchronized void ensureLoaded(Context context) {
         if (loaded) {
             return;
         }
         loaded = true;
         try {
-            File dir = packDirectory();
+            File dir = packDirectory(context);
             if (!dir.isDirectory()) {
                 return;
             }
@@ -112,7 +136,7 @@ public final class KeyboardIconPackRuntime {
             if (pack == null) {
                 return;
             }
-            activePackName = pack.getName();
+            activePackName = readActiveName(context, pack);
             ZipInputStream stream = new ZipInputStream(new FileInputStream(pack));
             try {
                 ZipEntry entry = stream.getNextEntry();
@@ -132,6 +156,27 @@ public final class KeyboardIconPackRuntime {
             }
         } catch (Throwable ignored) {
         }
+    }
+
+    private static String readActiveName(Context context, File pack) {
+        try {
+            File nameFile = new File(packDirectory(context), ACTIVE_NAME_FILE);
+            if (!nameFile.isFile()) {
+                return pack.getName();
+            }
+            FileInputStream in = new FileInputStream(nameFile);
+            try {
+                byte[] buffer = new byte[(int) nameFile.length()];
+                int read = in.read(buffer);
+                if (read > 0) {
+                    return new String(buffer, 0, read, "UTF-8").trim();
+                }
+            } finally {
+                in.close();
+            }
+        } catch (Throwable ignored) {
+        }
+        return pack.getName();
     }
 
     private static File firstPackIn(File dir) {

@@ -16,3 +16,6 @@ dist/
 libs/
 local.properties
 *.log
+
+# Local scratch (upstream clones, dexquery output, screenshots)
+tmp/

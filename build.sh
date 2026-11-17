@@ -23,24 +23,38 @@ else
     echo "Error: Java 21+ is required but not found." >&2
     exit 1
 fi
-echo "Using Java: $(${JAVA} -version 2>&1 | head -n 1)"
+echo "Using Java: $("${JAVA}" -version 2>&1 | head -n 1)"
 
 # 3. Resolve Kotlin compiler
-if [ -f "${HOME}/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
-    KOTLINC_JAR="${HOME}/.local/kotlinc/lib/kotlin-compiler.jar"
-elif [ -f "/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar" ]; then
-    KOTLINC_JAR="/home/ausamnco/.local/kotlinc/lib/kotlin-compiler.jar"
-elif [ -f "${LIBS_DIR}/kotlin-compiler.jar" ]; then
-    KOTLINC_JAR="${LIBS_DIR}/kotlin-compiler.jar"
-elif command -v kotlinc >/dev/null 2>&1; then
-    KOTLINC_BIN="$(command -v kotlinc)"
-    KOTLINC_DIR="$(dirname "$(dirname "$(readlink -f "${KOTLINC_BIN}")")")"
-    KOTLINC_JAR="${KOTLINC_DIR}/lib/kotlin-compiler.jar"
-else
-    echo "Error: kotlin-compiler.jar not found." >&2
-    exit 1
-fi
-echo "Using Kotlin Compiler: ${KOTLINC_JAR}"
+# The ported NL patches use Kotlin 2.2 context parameters, so the compiler is pinned to 2.2.20.
+KOTLIN_VERSION="2.2.20"
+mkdir -p "${LIBS_DIR}"
+fetch_jar() {
+    local target="${LIBS_DIR}/$1"
+    if [ ! -f "${target}" ]; then
+        echo "Downloading $1..."
+        curl -fsSL -o "${target}" "$2"
+    fi
+}
+fetch_jar "kotlin-compiler-embeddable-${KOTLIN_VERSION}.jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-compiler-embeddable/${KOTLIN_VERSION}/kotlin-compiler-embeddable-${KOTLIN_VERSION}.jar"
+fetch_jar "kotlin-stdlib-${KOTLIN_VERSION}.jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/${KOTLIN_VERSION}/kotlin-stdlib-${KOTLIN_VERSION}.jar"
+fetch_jar "kotlin-reflect-${KOTLIN_VERSION}.jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-reflect/${KOTLIN_VERSION}/kotlin-reflect-${KOTLIN_VERSION}.jar"
+fetch_jar "kotlin-script-runtime-${KOTLIN_VERSION}.jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-script-runtime/${KOTLIN_VERSION}/kotlin-script-runtime-${KOTLIN_VERSION}.jar"
+fetch_jar "kotlin-daemon-embeddable-${KOTLIN_VERSION}.jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-daemon-embeddable/${KOTLIN_VERSION}/kotlin-daemon-embeddable-${KOTLIN_VERSION}.jar"
+fetch_jar "kotlinx-coroutines-core-jvm-1.10.2.jar" "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.10.2/kotlinx-coroutines-core-jvm-1.10.2.jar"
+fetch_jar "trove4j.jar" "https://repo1.maven.org/maven2/org/jetbrains/intellij/deps/trove4j/1.0.20200330/trove4j-1.0.20200330.jar"
+fetch_jar "annotations-26.0.2.jar" "https://repo1.maven.org/maven2/org/jetbrains/annotations/26.0.2/annotations-26.0.2.jar"
+KOTLIN_COMPILER_JARS=(
+    "kotlin-compiler-embeddable-${KOTLIN_VERSION}.jar"
+    "kotlin-stdlib-${KOTLIN_VERSION}.jar"
+    "kotlin-reflect-${KOTLIN_VERSION}.jar"
+    "kotlin-script-runtime-${KOTLIN_VERSION}.jar"
+    "kotlin-daemon-embeddable-${KOTLIN_VERSION}.jar"
+    "kotlinx-coroutines-core-jvm-1.10.2.jar"
+    "trove4j.jar"
+    "annotations-26.0.2.jar"
+)
+echo "Using Kotlin Compiler: ${KOTLIN_VERSION}"
 
 # 4. Resolve Morphe CLI / Patcher Framework
 mkdir -p "${LIBS_DIR}"
@@ -52,26 +66,70 @@ if [ ! -f "${MORPHE_JAR}" ]; then
         cp "${HOME}/.local/morphe/morphe-cli.jar" "${MORPHE_JAR}"
     else
         echo "Downloading morphe-desktop jar..."
-        curl -fSL -o "${MORPHE_JAR}" "https://github.com/MorpheApp/morphe-desktop/releases/download/v1.16.0/morphe-desktop-1.16.0-all.jar"
+        curl -fSL -o "${MORPHE_JAR}" "https://github.com/MorpheApp/morphe-desktop/releases/download/v2.1.1/morphe-desktop-2.1.1-all.jar"
     fi
 fi
 echo "Using Morphe Framework: ${MORPHE_JAR}"
+
+# 4b. Resolve Gson (used by the ported NL patches for version bindings)
+GSON_JAR="${LIBS_DIR}/gson.jar"
+if [ ! -f "${GSON_JAR}" ]; then
+    echo "Downloading Gson..."
+    curl -fSL -o "${GSON_JAR}" "https://repo1.maven.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar"
+fi
+if [[ "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == cygwin* || "${OS:-}" == Windows_NT ]]; then
+    CLASSPATH_SEP=";"
+else
+    CLASSPATH_SEP=":"
+fi
+if [ "${CLASSPATH_SEP}" = ";" ]; then
+    # Native java.exe needs Windows paths; MSYS would mangle a ';' separated POSIX list.
+    PATCH_CLASSPATH="$(cygpath -w "${MORPHE_JAR}");$(cygpath -w "${GSON_JAR}")"
+else
+    PATCH_CLASSPATH="${MORPHE_JAR}${CLASSPATH_SEP}${GSON_JAR}"
+fi
 
 # Prepare folders
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 mkdir -p "${DIST_DIR}"
 
-# 5. Compile Kotlin sources
+# 5. Compile Kotlin sources (relative paths keep the command line under the Windows limit)
 echo "Compiling Kotlin sources..."
-mapfile -t KT_SOURCES < <(find "${SCRIPT_DIR}/src/main/kotlin" -name "*.kt" | sort)
-"${JAVA}" -jar "${KOTLINC_JAR}" \
-    -cp "${MORPHE_JAR}" \
-    -d "${BUILD_DIR}" \
-    -jvm-target 11 \
-    -Xskip-metadata-version-check \
-    -Xcontext-receivers \
-    "${KT_SOURCES[@]}"
+cd "${SCRIPT_DIR}"
+# Fail if a feature is implemented twice in different source groups: only one copy is
+# wired into the bundle, so edits to the other would be silently ignored.
+bash "${SCRIPT_DIR}/tools/check-duplicate-sources.sh"
+# Compile per package group: a single invocation for the whole tree
+# exceeds the Windows command-line limit once both ported suites exist.
+KT_GROUPS=()
+for group_dir in src/main/kotlin/*/; do
+    [ -d "${group_dir}" ] && KT_GROUPS+=("${group_dir%/}")
+done
+KOTLINC_CP=""
+for compiler_jar in "${KOTLIN_COMPILER_JARS[@]}"; do
+    if [ "${CLASSPATH_SEP}" = ";" ]; then
+        compiler_jar_path="$(cygpath -w "${LIBS_DIR}/${compiler_jar}")"
+    else
+        compiler_jar_path="${LIBS_DIR}/${compiler_jar}"
+    fi
+    if [ -z "${KOTLINC_CP}" ]; then
+        KOTLINC_CP="${compiler_jar_path}"
+    else
+        KOTLINC_CP="${KOTLINC_CP}${CLASSPATH_SEP}${compiler_jar_path}"
+    fi
+done
+for kt_group in "${KT_GROUPS[@]}"; do
+    mapfile -t KT_SOURCES < <(find "${kt_group}" -name "*.kt" | sort)
+    echo "  ${kt_group} (${#KT_SOURCES[@]} files)"
+    "${JAVA}" -cp "${KOTLINC_CP}" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler \
+        -cp "${PATCH_CLASSPATH}" \
+        -d "${BUILD_DIR}" \
+        -jvm-target 11 \
+        -Xskip-metadata-version-check \
+        -Xcontext-parameters \
+        "${KT_SOURCES[@]}"
+done
 
 # 5b. Compile Java extension sources (injected into target APK)
 ANDROID_JAR="${LIBS_DIR}/android.jar"
@@ -89,7 +147,7 @@ fi
 JAVAC_BIN="${JAVA//java/javac}"
 JAVA_BUILD_DIR="${BUILD_DIR}/java_output"
 mkdir -p "${JAVA_BUILD_DIR}"
-mapfile -t JAVA_SOURCES < <(find "${SCRIPT_DIR}/src/main/java" -name "*.java" 2>/dev/null | sort)
+mapfile -t JAVA_SOURCES < <(find "src/main/java" -name "*.java" 2>/dev/null | sort)
 if [ ${#JAVA_SOURCES[@]} -gt 0 ]; then
     echo "Compiling Java extension sources (${#JAVA_SOURCES[@]} files)..."
     "${JAVAC_BIN}" -cp "${ANDROID_JAR}" -d "${JAVA_BUILD_DIR}" "${JAVA_SOURCES[@]}"
@@ -130,7 +188,11 @@ EOF
 JAR_BIN="${JAVA//java/jar}"
 
 TEMP_CLASSES_JAR="${BUILD_DIR}/classes-temp.jar"
-"${JAR_BIN}" -cfm "${TEMP_CLASSES_JAR}" "${MANIFEST_FILE}" -C "${BUILD_DIR}" dev
+CLASS_DIRS=()
+for class_root in app dev patches; do
+    [ -d "${BUILD_DIR}/${class_root}" ] && CLASS_DIRS+=(-C "${BUILD_DIR}" "${class_root}")
+done
+"${JAR_BIN}" -cfm "${TEMP_CLASSES_JAR}" "${MANIFEST_FILE}" ${CLASS_DIRS[@]+"${CLASS_DIRS[@]}"}
 
 # 8. Run D8 to generate classes.dex for Android ART/Dalvik runtime
 echo "Compiling Dalvik executable (classes.dex) with D8..."
@@ -149,19 +211,55 @@ cp "${DEX_DIR}/classes.dex" "${BUILD_DIR}/classes.dex"
 rm -f "${TEMP_CLASSES_JAR}"
 rm -rf "${DEX_DIR}"
 
+# 8b. Copy patch resource trees into the bundle
+RESOURCE_ROOTS=()
+if [ -d "${SCRIPT_DIR}/src/main/resources" ]; then
+    for resource_dir in "${SCRIPT_DIR}/src/main/resources"/*/; do
+        resource_name="$(basename "${resource_dir}")"
+        cp -r "${resource_dir}" "${BUILD_DIR}/"
+        RESOURCE_ROOTS+=("${resource_name}")
+        echo "Bundling resources: ${resource_name}"
+    done
+fi
+# Morphe extension artefacts (.rve) live at the bundle root under extensions/.
+if [ -d "${SCRIPT_DIR}/src/main/extensions" ]; then
+    cp -r "${SCRIPT_DIR}/src/main/extensions" "${BUILD_DIR}/"
+    RESOURCE_ROOTS+=("extensions")
+    echo "Bundling resources: extensions"
+fi
+
+# 8c. Unpack Gson for bundling. Patch code uses com.google.gson at finalize time (language model
+# bindings, capability wiring, registry metadata) and the host CLI jar does not export it on the
+# parent classloader, so a run that selects those patches dies with NoClassDefFoundError while
+# writing the APK. Carrying the classes inside the bundle keeps it self-contained for the CLI and
+# for Morphe Manager (which resolves its own copy first).
+GSON_UNPACK="${BUILD_DIR}/gson-classes"
+rm -rf "${GSON_UNPACK}"
+mkdir -p "${GSON_UNPACK}"
+( cd "${GSON_UNPACK}" && "${JAR_BIN}" -xf "${GSON_JAR}" )
+rm -rf "${GSON_UNPACK}/META-INF" "${GSON_UNPACK}/module-info.class"
+echo "Bundling Gson runtime classes"
+
 # 9. Package final .mpp and .jar
 MPP_OUTPUT="${DIST_DIR}/patches-${VERSION}.mpp"
 JAR_OUTPUT="${DIST_DIR}/gboard-backspace-haptics.jar"
 
 echo "Packaging final patch bundle ${MPP_OUTPUT}..."
 rm -f "${MPP_OUTPUT}" "${JAR_OUTPUT}"
-"${JAR_BIN}" -cfm "${MPP_OUTPUT}" "${MANIFEST_FILE}" -C "${BUILD_DIR}" dev -C "${BUILD_DIR}" classes.dex
+JAR_RESOURCE_ARGS=()
+for resource_name in ${RESOURCE_ROOTS[@]+"${RESOURCE_ROOTS[@]}"}; do
+    JAR_RESOURCE_ARGS+=(-C "${BUILD_DIR}" "${resource_name}")
+done
+"${JAR_BIN}" -cfm "${MPP_OUTPUT}" "${MANIFEST_FILE}" ${CLASS_DIRS[@]+"${CLASS_DIRS[@]}"} -C "${BUILD_DIR}" classes.dex ${JAR_RESOURCE_ARGS[@]+"${JAR_RESOURCE_ARGS[@]}"}
 if [ -f "${BUILD_DIR}/colorwheel.dex" ]; then
     echo "Adding colorwheel.dex to patch bundle..."
     "${JAR_BIN}" -uf "${MPP_OUTPUT}" -C "${BUILD_DIR}" colorwheel.dex
 fi
 if [ -d "${BUILD_DIR}/META-INF" ]; then
     "${JAR_BIN}" -uf "${MPP_OUTPUT}" -C "${BUILD_DIR}" META-INF
+fi
+if [ -d "${GSON_UNPACK}/com" ]; then
+    "${JAR_BIN}" -uf "${MPP_OUTPUT}" -C "${GSON_UNPACK}" com
 fi
 cp "${MPP_OUTPUT}" "${JAR_OUTPUT}"
 
