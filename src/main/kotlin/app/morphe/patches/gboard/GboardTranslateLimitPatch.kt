@@ -3,6 +3,7 @@ package app.morphe.patches.gboard
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.instructions
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patches.shared.Constants
 import app.morphe.patches.shared.cleanClassName
@@ -22,9 +23,10 @@ val gboardTranslateLimitPatch = bytecodePatch(
     execute {
         var patched = 0
 
+        // The layout-ready method is obfuscated and Google renames it every release (`eg` on
+        // 18.5.4, `eQ` on 18.6.3), so match it by its exported signature instead of its name.
         val fp = Fingerprint(
             definingClass = "Lcom/google/android/apps/inputmethod/libs/translate/TranslateKeyboard;",
-            name = "eg",
             parameters = listOf(
                 "Lcom/google/android/libraries/inputmethod/widgets/SoftKeyboardView;",
                 "Lcom/google/android/libraries/inputmethod/metadata/KeyboardViewDef;",
@@ -32,7 +34,15 @@ val gboardTranslateLimitPatch = bytecodePatch(
             returnType = "V",
         )
 
-        val aInsnIndex = fp.method.instructions.indexOfFirst { insn ->
+        val layoutReady = try {
+            fp.method
+        } catch (e: Exception) {
+            throw PatchException(
+                "[Translate Limit] TranslateKeyboard layout-ready method not found: ${e.message}",
+            )
+        }
+
+        val aInsnIndex = layoutReady.instructions.indexOfFirst { insn ->
             insn.opcode.name.startsWith("iput") &&
                 ((insn as? ReferenceInstruction)?.reference as? FieldReference)?.let { field ->
                     field.name == "a" && field.type == "Lcom/google/android/libraries/inputmethod/widgets/EditTextOnKeyboard;"
@@ -40,9 +50,9 @@ val gboardTranslateLimitPatch = bytecodePatch(
         }
 
         if (aInsnIndex != -1) {
-            val insn = fp.method.instructions.elementAt(aInsnIndex)
+            val insn = layoutReady.instructions.elementAt(aInsnIndex)
             val reg = (insn as? TwoRegisterInstruction)?.registerA ?: 4
-            fp.method.addInstructions(
+            layoutReady.addInstructions(
                 aInsnIndex + 1,
                 """
                     invoke-static/range {v$reg .. v$reg}, ${Constants.GBOARD_EXTENSION_CLASS}->removeTranslateLimit(Landroid/widget/EditText;)V
@@ -51,7 +61,7 @@ val gboardTranslateLimitPatch = bytecodePatch(
             patched++
         }
 
-        val targetClass = cleanClassName(fp.originalClassDef.type)
+        val targetClass = cleanClassName(layoutReady.definingClass)
         if (patched == 0) {
             println("[Translate Limit] WARNING: applied 0 hook(s) -> this feature is NOT active on this APK; its targets moved upstream.")
         } else {

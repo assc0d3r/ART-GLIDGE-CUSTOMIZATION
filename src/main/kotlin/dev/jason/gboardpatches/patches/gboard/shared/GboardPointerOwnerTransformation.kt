@@ -415,10 +415,16 @@ private val gboardPointerOwnerComposerPatch = bytecodePatch(
     finalize {
         val selected = GboardPointerOwnerFeatureSelections.take(this)
         if (selected.isEmpty()) return@finalize
-        gboardPointerOwnerTransformation.apply(
-            GboardVersionBindings.pointerOwner.ownerClass(this),
-            selected,
-        )
+        try {
+            gboardPointerOwnerTransformation.apply(
+                GboardVersionBindings.pointerOwner.ownerClass(this),
+                selected,
+            )
+        } catch (t: Throwable) {
+            // The patcher drops finalize-time messages, so surface the reason before rethrowing.
+            println("[Pointer Owner] composition failed: ${t.message}")
+            throw t
+        }
     }
 }
 
@@ -612,20 +618,39 @@ private fun GboardPointerOwnerTransformationContext.verifyPointerOwnerCalls(
     check(rIndex >= 0 && acIndex > rIndex) { "Malformed Gboard pointer-owner anchors" }
     val englishIndex = ownerCalls.singleIndexOrNull(ENGLISH_OWNER_CALL)
     val zhuyinIndex = ownerCalls.singleIndexOrNull(ZHUYIN_OWNER_CALL)
-    check(englishIndex == null || englishIndex < rIndex)
-    check(zhuyinIndex == null || zhuyinIndex < rIndex)
-    check(englishIndex == null || zhuyinIndex == null || englishIndex < zhuyinIndex)
+    check(englishIndex == null || englishIndex < rIndex) {
+        "Malformed Gboard English pointer-owner placement: english=$englishIndex finish=$rIndex"
+    }
+    check(zhuyinIndex == null || zhuyinIndex < rIndex) {
+        "Malformed Gboard Zhuyin pointer-owner placement: zhuyin=$zhuyinIndex finish=$rIndex"
+    }
+    check(englishIndex == null || zhuyinIndex == null || englishIndex < zhuyinIndex) {
+        "Malformed Gboard pointer-owner call order: english=$englishIndex zhuyin=$zhuyinIndex"
+    }
     val topRowIndex = ownerCalls.singleIndexOrNull(TOP_ROW_OWNER_CALL)
-    check(topRowIndex == null || topRowIndex == acIndex + 1)
+    check(topRowIndex == null || topRowIndex == acIndex + 1) {
+        "Malformed Gboard top-row pointer-owner placement: topRow=$topRowIndex preReset=$acIndex"
+    }
     ownerCalls.filter { (_, descriptor) -> descriptor == LONG_PRESS_OWNER_CALL }
         .forEach { (index, _) ->
-            check(pointerOwnerMethod.implementation!!.instructions[index] is RegisterRangeInstruction)
+            check(pointerOwnerMethod.implementation!!.instructions[index] is RegisterRangeInstruction) {
+                "Malformed Gboard long-press pointer-owner call at $index: not a range invoke"
+            }
             val invoke = pointerOwnerMethod.implementation!!.instructions[index] as RegisterRangeInstruction
             check(pointerOwnerMethod.implementation!!.instructions[index].opcode ==
-                Opcode.INVOKE_STATIC_RANGE)
-            check(invoke.startRegister == GboardPointerOwnerRegisterContract.expandedP0Register)
-            check(invoke.registerCount == 2)
-            check(pointerOwnerMethod.implementation!!.instructions[index + 1].opcode == Opcode.RETURN_VOID)
+                Opcode.INVOKE_STATIC_RANGE) {
+                "Malformed Gboard long-press pointer-owner call at $index: " +
+                    "${pointerOwnerMethod.implementation!!.instructions[index].opcode}"
+            }
+            check(invoke.startRegister == GboardPointerOwnerRegisterContract.expandedP0Register) {
+                "Malformed Gboard long-press pointer-owner start register: ${invoke.startRegister}"
+            }
+            check(invoke.registerCount == 2) {
+                "Malformed Gboard long-press pointer-owner register count: ${invoke.registerCount}"
+            }
+            check(pointerOwnerMethod.implementation!!.instructions[index + 1].opcode == Opcode.RETURN_VOID) {
+                "Malformed Gboard long-press pointer-owner return after the call at $index"
+            }
         }
     listOfNotNull(englishIndex, zhuyinIndex, topRowIndex).forEach { index ->
         val invoke = pointerOwnerMethod.implementation!!.instructions[index] as FiveRegisterInstruction
@@ -666,7 +691,9 @@ private fun GboardPointerOwnerTransformationContext.verifyCleanupCalls(
         ENGLISH_CLEAR_CALL to hasEnglish,
         ZHUYIN_CLEAR_CALL to hasZhuyin,
     ).forEach { (descriptor, enabled) ->
-        check(allMethods.sumOf { method -> method.countCalls(descriptor) } == if (enabled) 2 else 0)
+        check(allMethods.sumOf { method -> method.countCalls(descriptor) } == if (enabled) 2 else 0) {
+            "Malformed Gboard pointer-owner cleanup count for ${descriptor.render()}"
+        }
     }
     check(allMethods.sumOf { method -> method.countCalls(TOP_ROW_CLEAR_CALL) } == if (hasTopRow) {
         pointerCancelMethod.returnInstructionIndices().size + 1
@@ -687,8 +714,12 @@ private fun GboardPointerOwnerTransformationContext.verifyCleanupCalls(
     pointerFinishMethod.verifyCallsImmediatelyBeforeReturns(expectedFinishOrder)
     pointerCancelMethod.verifyEntryCalls(expectedCancelEntry)
     pointerResetMethod.verifyEntryCalls(expectedResetOrder)
-    check(pointerCancelMethod.transformationCallIndices().map { it.second } == expectedCancelOrder)
-    check(pointerResetMethod.transformationCallIndices().map { it.second } == expectedResetOrder)
+    check(pointerCancelMethod.transformationCallIndices().map { it.second } == expectedCancelOrder) {
+        "Malformed Gboard pointer-cancel cleanup order in ${pointerCancelMethod.definingClass}"
+    }
+    check(pointerResetMethod.transformationCallIndices().map { it.second } == expectedResetOrder) {
+        "Malformed Gboard pointer-reset cleanup order in ${pointerResetMethod.definingClass}"
+    }
 }
 
 private fun Set<GboardPointerOwnerFeature>.expectedPointerCancelEntryCalls(): List<MethodCall> =
@@ -874,6 +905,8 @@ private val ENGLISH_HELPER_METHODS by lazy { setOf(
         AccessFlags.PRIVATE.value or AccessFlags.FINAL.value,
         when (GboardVersionBindings.targetVersion) {
             "18.5.4" -> "9ef19d4d34512bd19e259d766bc6c82c358a55410564691f84a6602c37f4aecc"
+            // 18.6.3 dispatches through the `Lpuc;` event enum instead of `Lqae;`.
+            "18.6.3" -> "66fdd876a7c46dfb57df7ee55f464ce82d660c3ea56586b71fa5ef24d7343797"
             else -> "376f69ad84e0010204d729ce09f4092848775e875721797b3f6528723cc8b770"
         },
     ),
@@ -884,6 +917,7 @@ private val ENGLISH_HELPER_METHODS by lazy { setOf(
         AccessFlags.PRIVATE.value or AccessFlags.FINAL.value,
         when (GboardVersionBindings.targetVersion) {
             "18.5.4" -> "72efbe3504490610a371883613263f90d684fe901ea27b9bcf6d3a3fa9691e45"
+            "18.6.3" -> "62d824d0d7a0775e24a99657cd2ab9194d5939b857ce186e6c1e87b06c320895"
             else -> "4e12d6280912adf42d09797a759925f47bba89c612b5b3ae4d15b6b2895afd8d"
         },
     ),

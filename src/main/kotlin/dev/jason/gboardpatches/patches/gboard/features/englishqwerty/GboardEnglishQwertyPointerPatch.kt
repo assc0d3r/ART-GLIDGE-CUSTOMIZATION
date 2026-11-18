@@ -19,6 +19,14 @@ import dev.jason.gboardpatches.patches.gboard.shared.runtimeabi.RuntimeCallId
 
 private val pointerTrackerClass: String
     get() = GboardVersionBindings.pointerOwnerType.descriptor
+
+// The pointer/key event enum the tracker dispatches through: `Lqae;` on 18.5.4, `Lpuc;` on
+// 18.6.3 (same shape: the enum the tracker's h(FF…) overload takes and i() returns).
+private val POINTER_EVENT_TYPE: String
+    get() = when (GboardVersionBindings.targetVersion) {
+        "18.5.4" -> "Lqae;"
+        else -> "Lpuc;"
+    }
 private val SOFT_KEY_VIEW_TYPE: String
     get() = GboardVersionBindings.softKeyViewType.descriptor
 private val ENGLISH_UPPERCASE_RUNTIME_CLASS = RuntimeAbiCatalog.abi(
@@ -187,19 +195,19 @@ private val SHOULD_SUPPRESS_ENGLISH_RETARGET_BODY by lazy { """
 
     if-eqz v2, :cond_return_false
 
-    invoke-virtual {p0}, $pointerTrackerClass->i()Lqae;
+    invoke-virtual {p0}, $pointerTrackerClass->i()$POINTER_EVENT_TYPE
 
     move-result-object v2
 
-    invoke-virtual {p0, p2, p3, v2}, $pointerTrackerClass->h(FFLqae;)Lqae;
+    invoke-virtual {p0, p2, p3, v2}, $pointerTrackerClass->h(FF$POINTER_EVENT_TYPE)$POINTER_EVENT_TYPE
 
     move-result-object v2
 
-    sget-object v3, Lqae;->c:Lqae;
+    sget-object v3, $POINTER_EVENT_TYPE->c:$POINTER_EVENT_TYPE
 
     if-ne v2, v3, :cond_return_false
 
-    invoke-virtual {v1, v2}, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->g(Lqae;)Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
+    invoke-virtual {v1, v2}, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->g($POINTER_EVENT_TYPE)Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
 
     move-result-object v1
 
