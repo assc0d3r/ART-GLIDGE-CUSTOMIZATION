@@ -18,6 +18,21 @@ private val ENGLISH_UPPERCASE_RUNTIME_CLASS = RuntimeAbiCatalog.abi(
 private val softKeyMetadataType: String
     get() = GboardVersionBindings.softKeyMetadataType.descriptor
 
+// Every type the generated bodies below build with was renamed for 18.6.3. The mapping is kept
+// here, once, so the smali templates stay readable:
+//   pointer event enum     Lqae; -> Lpuc;  (PRESS=a, LONG_PRESS=b, SLIDE_UP=c)
+//   ActionDef builder      Lqaf; -> Lpud;  (field `a` = event, c() materialises the ActionDef)
+//   action parameter type  Lqbb; -> Lpuz;  (c = COMMIT)
+//   action parameter       Lqbc; -> Lpva;  (field `e` = the value)
+//   SoftKeyDef builder     Lqcv; -> Lpwt;  (add-action moved from t() to o())
+//   metadata list type     Lwns; -> Lwhe;  (the List behind SoftKeyDef.i and ActionDef.f)
+private const val EVENT_TYPE = "Lpuc;"
+private const val ACTION_BUILDER = "Lpud;"
+private const val ACTION_PARAM_TYPE = "Lpuz;"
+private const val ACTION_PARAM = "Lpva;"
+private const val SOFT_KEY_BUILDER = "Lpwt;"
+private const val METADATA_LIST_TYPE = "Lwhe;"
+
 internal val gboardEnglishQwertySoftKeyPatch = gboardSoftKeyFamilyFeaturePatch(
     description = "在 18.5.4 English QWERTY bind time 注入缺少的上滑大小寫 action。",
     feature = GboardSoftKeyFamilyFeature.ENGLISH_QWERTY,
@@ -137,7 +152,7 @@ private val TOGGLE_ASCII_CASE_BODY = """
 private val RESOLVE_PRIMARY_LABEL_BODY = """
     if-eqz p0, :cond_none
 
-    iget-object p0, p0, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->i:Lwns;
+    iget-object p0, p0, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->i:$METADATA_LIST_TYPE
 
     if-eqz p0, :cond_none
 
@@ -184,15 +199,15 @@ private val RESOLVE_PRIMARY_LABEL_BODY = """
 private val RESOLVE_PRESS_PAYLOAD_BODY = """
     if-eqz p0, :cond_none
 
-    sget-object v0, Lqae;->a:Lqae;
+    sget-object v0, $EVENT_TYPE->a:$EVENT_TYPE
 
-    invoke-virtual {p0, v0}, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->g(Lqae;)Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
+    invoke-virtual {p0, v0}, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->g($EVENT_TYPE)Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
 
     move-result-object v0
 
     if-eqz v0, :cond_none
 
-    iget-object v0, v0, Lcom/google/android/libraries/inputmethod/metadata/ActionDef;->f:Lwns;
+    iget-object v0, v0, Lcom/google/android/libraries/inputmethod/metadata/ActionDef;->f:$METADATA_LIST_TYPE
 
     if-eqz v0, :cond_none
 
@@ -209,11 +224,11 @@ private val RESOLVE_PRESS_PAYLOAD_BODY = """
 
     move-result-object v3
 
-    check-cast v3, Lqbc;
+    check-cast v3, $ACTION_PARAM
 
     if-eqz v3, :cond_next
 
-    iget-object v3, v3, Lqbc;->e:Ljava/lang/Object;
+    iget-object v3, v3, $ACTION_PARAM->e:Ljava/lang/Object;
 
     instance-of v4, v3, Ljava/lang/CharSequence;
 
@@ -342,9 +357,9 @@ private val PATCH_INCOMING_METADATA_BODY = """
 
     if-eqz v0, :cond_return_original_safe
 
-    sget-object v0, Lqae;->c:Lqae;
+    sget-object v0, $EVENT_TYPE->c:$EVENT_TYPE
 
-    invoke-virtual {p1, v0}, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->g(Lqae;)Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
+    invoke-virtual {p1, v0}, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->g($EVENT_TYPE)Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
 
     move-result-object v0
 
@@ -393,19 +408,19 @@ private val PATCH_INCOMING_METADATA_BODY = """
     if-eqz v0, :cond_return_original_safe
 
     :cond_build_action
-    new-instance v4, Lqcv;
+    new-instance v4, $SOFT_KEY_BUILDER
 
-    invoke-direct {v4}, Lqcv;-><init>()V
+    invoke-direct {v4}, $SOFT_KEY_BUILDER-><init>()V
 
-    invoke-virtual {v4, p1}, Lqcv;->k(Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;)V
+    invoke-virtual {v4, p1}, $SOFT_KEY_BUILDER->k(Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;)V
 
-    new-instance v5, Lqaf;
+    new-instance v5, $ACTION_BUILDER
 
-    invoke-direct {v5}, Lqaf;-><init>()V
+    invoke-direct {v5}, $ACTION_BUILDER-><init>()V
 
-    sget-object v6, Lqae;->c:Lqae;
+    sget-object v6, $EVENT_TYPE->c:$EVENT_TYPE
 
-    iput-object v6, v5, Lqaf;->a:Lqae;
+    iput-object v6, v5, $ACTION_BUILDER->a:$EVENT_TYPE
 
     const/4 v6, 0x1
 
@@ -415,23 +430,23 @@ private val PATCH_INCOMING_METADATA_BODY = """
 
     aput-object v3, v7, v6
 
-    invoke-virtual {v5, v7}, Lqaf;->t([Ljava/lang/String;)V
+    invoke-virtual {v5, v7}, $ACTION_BUILDER->t([Ljava/lang/String;)V
 
     const v7, -0x2719
 
-    sget-object v8, Lqbb;->c:Lqbb;
+    sget-object v8, $ACTION_PARAM_TYPE->c:$ACTION_PARAM_TYPE
 
-    invoke-virtual {v5, v7, v8, v3}, Lqaf;->s(ILqbb;Ljava/lang/Object;)V
+    invoke-virtual {v5, v7, v8, v3}, $ACTION_BUILDER->s(I${ACTION_PARAM_TYPE}Ljava/lang/Object;)V
 
-    invoke-virtual {v5}, Lqaf;->c()Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
+    invoke-virtual {v5}, $ACTION_BUILDER->c()Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
 
     move-result-object v5
 
     if-eqz v5, :cond_return_original_safe
 
-    invoke-virtual {v4, v5}, Lqcv;->t(Lcom/google/android/libraries/inputmethod/metadata/ActionDef;)V
+    invoke-virtual {v4, v5}, $SOFT_KEY_BUILDER->o(Lcom/google/android/libraries/inputmethod/metadata/ActionDef;)V
 
-    invoke-virtual {v4}, Lqcv;->b()Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;
+    invoke-virtual {v4}, $SOFT_KEY_BUILDER->b()Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;
 
     move-result-object v0
 

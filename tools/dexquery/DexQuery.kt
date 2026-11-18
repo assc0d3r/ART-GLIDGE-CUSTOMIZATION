@@ -6,6 +6,7 @@ import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.instruction.DualReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.FieldOffsetInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
@@ -197,6 +198,105 @@ fun main(args: Array<String>) {
                 }
             }
         }
+        "unresolved" -> {
+            // Report every method/field reference that cannot be resolved against the classes in
+            // this APK. Generated patch code that still targets a previous release's obfuscated
+            // names shows up here instead of failing quietly at runtime.
+            val byType = classes.associateBy { it.type }
+            var findings = 0
+
+            fun isFramework(type: String) = listOf(
+                "Ljava/", "Landroid/", "Ljavax/", "Ldalvik/", "Lsun/",
+                "Lorg/json/", "Lorg/w3c/", "Lorg/xml/",
+            ).any { prefix -> type.startsWith(prefix) }
+
+            fun hasMethod(
+                owner: ClassDef?,
+                name: String,
+                params: List<String>,
+                returnType: String,
+                seen: MutableSet<String> = mutableSetOf(),
+            ): Boolean {
+                // An ancestor that is not shipped in this APK (java.util.*, android.*) cannot be
+                // inspected; treat it as resolved instead of reporting a false positive.
+                if (owner == null) return true
+                if (!seen.add(owner.type)) return false
+                if (owner.methods.any { candidate ->
+                        candidate.name == name &&
+                            candidate.parameterTypes.map(CharSequence::toString) == params &&
+                            candidate.returnType == returnType
+                    }
+                ) {
+                    return true
+                }
+                return hasMethod(byType[owner.superclass], name, params, returnType, seen) ||
+                    owner.interfaces.any { hasMethod(byType[it], name, params, returnType, seen) }
+            }
+
+            fun hasField(
+                owner: ClassDef?,
+                name: String,
+                type: String,
+                seen: MutableSet<String> = mutableSetOf(),
+            ): Boolean {
+                if (owner == null) return true
+                if (!seen.add(owner.type)) return false
+                if (owner.fields.any { it.name == name && it.type == type }) return true
+                return hasField(byType[owner.superclass], name, type, seen) ||
+                    owner.interfaces.any { hasField(byType[it], name, type, seen) }
+            }
+
+            fun report(where: String, what: String) {
+                findings++
+                println("UNRESOLVED $what <- $where")
+            }
+
+            classes.forEach { classDef ->
+                classDef.methods.forEach { method ->
+                    val where = "${classDef.type}->${method.name}(${method.parameterTypes.joinToString("")})${method.returnType}"
+                    method.implementation?.instructions?.forEach { instruction ->
+                        when (val reference = (instruction as? ReferenceInstruction)?.reference) {
+                            is MethodReference -> {
+                                // Array types are not class defs; their members come from Object.
+                                if (reference.definingClass.startsWith("[")) return@forEach
+                                val owner = byType[reference.definingClass]
+                                val signature = "${reference.definingClass}->${reference.name}" +
+                                    "(${reference.parameterTypes.joinToString("")})" +
+                                    reference.returnType
+                                if (owner == null) {
+                                    if (!isFramework(reference.definingClass)) {
+                                        report(where, "class ${reference.definingClass} for $signature")
+                                    }
+                                } else if (!hasMethod(
+                                        owner,
+                                        reference.name,
+                                        reference.parameterTypes.map(CharSequence::toString),
+                                        reference.returnType,
+                                    )
+                                ) {
+                                    report(where, "method $signature")
+                                }
+                            }
+
+                            is FieldReference -> {
+                                val owner = byType[reference.definingClass]
+                                if (owner == null) {
+                                    if (!isFramework(reference.definingClass)) {
+                                        report(where, "class ${reference.definingClass} for field ${reference.name}:${reference.type}")
+                                    }
+                                } else if (!hasField(owner, reference.name, reference.type)) {
+                                    report(where, "field ${reference.definingClass}->${reference.name}:${reference.type}")
+                                }
+                            }
+
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+            println("unresolved=$findings")
+        }
+
         else -> System.err.println("unknown command: $command")
     }
 }
