@@ -244,18 +244,17 @@ private fun MutableMethod.requireSoftKeyTargetShape() {
     ) { "Unexpected SoftKey bind target shape: $definingClass->$name" }
 }
 
+// The stock contract is decided by the exact structural checks below, not by a version list:
+// the retargeted 18.6.3 SoftKey bind keeps the same trace/token/metadata shape.
 private fun MutableMethod.requireSupportedSoftKeyStock() {
-    check(GboardVersionBindings.targetVersion in setOf("18.0.3", "18.5.4")) {
-        "Unsupported Gboard SoftKey stock contract for ${GboardVersionBindings.targetVersion}"
-    }
-    requireExact1803SoftKeyStockShape()
+    requireExactSoftKeyStockShape()
 }
 
-private fun MutableMethod.requireExact1803SoftKeyStockShape() {
+private fun MutableMethod.requireExactSoftKeyStockShape() {
     val instructions = implementation?.instructions
-        ?: error("No instructions in formal 18.0.3 SoftKey bind target")
+        ?: error("No instructions in the SoftKey bind target")
     check(accessFlags == (AccessFlags.PUBLIC.value or AccessFlags.FINAL.value)) {
-        "18.0.3 SoftKey bind access drift in $definingClass->$name"
+        "SoftKey bind access drift in $definingClass->$name"
     }
     if (GboardVersionBindings.targetVersion == "18.5.4") {
         check(implementation!!.registerCount == 8 && returnInstructionIndices().size == 2 &&
@@ -284,7 +283,7 @@ private fun MutableMethod.requireExact1803SoftKeyStockShape() {
         traceMarkers == 1 && bindTokenWrites == 1 && metadataReads >= 1 &&
             returnInstructionIndices().isNotEmpty()
     ) {
-        "18.0.3 SoftKey bind semantic shape drift in $definingClass->$name: " +
+        "SoftKey bind semantic shape drift in $definingClass->$name: " +
             "trace=$traceMarkers tokenWrites=$bindTokenWrites metadataReads=$metadataReads"
     }
 }

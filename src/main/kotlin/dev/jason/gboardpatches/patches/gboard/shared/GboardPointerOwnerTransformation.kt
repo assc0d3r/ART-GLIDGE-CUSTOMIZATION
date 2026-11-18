@@ -122,16 +122,16 @@ private fun Collection<GboardPointerOwnerFeatureSpec>.validatePointerOwnerSpecs(
     }.toMap(LinkedHashMap())
 }
 
+// The stock contract is decided by the exact structural checks below, not by a version list:
+// 18.0.3, 18.5.4 and 18.6.3 all keep the same finish/preReset anchor pair. A version allowlist
+// here rejected the retargeted 18.6.3 build whose bindings are generated from this APK.
 private fun MutableMethod.requireSupportedPointerOwnerStock() {
-    check(GboardVersionBindings.targetVersion in setOf("18.0.3", "18.5.4")) {
-        "Unsupported Gboard pointer-owner stock contract for ${GboardVersionBindings.targetVersion}"
-    }
-    requireExact1803PointerOwnerStockShape()
+    requireExactPointerOwnerStockShape()
 }
 
-private fun MutableMethod.requireExact1803PointerOwnerStockShape() {
+private fun MutableMethod.requireExactPointerOwnerStockShape() {
     val methodImplementation = implementation
-        ?: error("No instructions in formal 18.0.3 pointer-owner target")
+        ?: error("No instructions in the pointer-owner target")
     val instructions = methodImplementation.instructions
     val finishIndex = indexOfFirstMethodCall(
         GboardVersionBindings.pointerFinish.ownerDescriptor,
@@ -157,7 +157,7 @@ private fun MutableMethod.requireExact1803PointerOwnerStockShape() {
                 instruction.methodReference()?.let(GboardVersionBindings.pointerPreReset::matches) == true
             } == 1
     ) {
-        "18.0.3 pointer-owner semantic shape drift in $definingClass->$name: " +
+        "Pointer-owner semantic shape drift in $definingClass->$name: " +
             "finish=$finishIndex preReset=$preResetIndex registers=${methodImplementation.registerCount}"
     }
 }
@@ -186,30 +186,28 @@ private enum class PointerLifecycleRole(val label: String) {
 private fun MutableMethod.requireSupportedPointerLifecycleStock(
     role: PointerLifecycleRole,
 ) {
-    check(GboardVersionBindings.targetVersion in setOf("18.0.3", "18.5.4")) {
-        "Unsupported Gboard ${role.label} stock contract for ${GboardVersionBindings.targetVersion}"
-    }
-    requireExact1803PointerLifecycleShape(role)
+    requireExactPointerLifecycleShape(role)
 }
 
-private fun MutableMethod.requireExact1803PointerLifecycleShape(role: PointerLifecycleRole) {
+private fun MutableMethod.requireExactPointerLifecycleShape(role: PointerLifecycleRole) {
     val instructions = implementation?.instructions
-        ?: error("No instructions in formal 18.0.3 ${role.label} target")
+        ?: error("No instructions in the ${role.label} target")
     check(accessFlags == (AccessFlags.PUBLIC.value or AccessFlags.FINAL.value)) {
-        "18.0.3 ${role.label} access drift in $definingClass->$name"
+        "${role.label} access drift in $definingClass->$name"
     }
     when (role) {
         PointerLifecycleRole.FINISH -> {
             val dispatches = instructions.mapNotNull { it.methodReference() }.count { reference ->
                 reference.definingClass == when (GboardVersionBindings.targetVersion) {
                     "18.5.4" -> "Lqio;"
+                    "18.6.3" -> "Lqcl;"
                     else -> "Lpvj;"
                 } && reference.name == "f" &&
                     reference.parameterTypes == GboardVersionBindings.gestureDispatch.parameterTypes &&
                     reference.returnType == GboardVersionBindings.gestureDispatch.returnType
             }
             check(parameterTypes == listOf("J", "I") && dispatches == 1) {
-                "18.0.3 pointer finish dispatch shape drift in $definingClass->$name"
+                "Pointer finish dispatch shape drift in $definingClass->$name"
             }
         }
         PointerLifecycleRole.CANCEL -> {
@@ -244,7 +242,7 @@ private fun MutableMethod.requireExact1803PointerLifecycleShape(role: PointerLif
                 parameterTypes.isEmpty() && cancelIndex >= 0 &&
                     preResetIndex == cancelIndex + 1 &&
                     instructions.lastOrNull()?.opcode == Opcode.RETURN_VOID
-            ) { "18.0.3 pointer reset shape drift in $definingClass->$name" }
+            ) { "Pointer reset shape drift in $definingClass->$name" }
         }
     }
 }
@@ -555,15 +553,8 @@ private fun GboardPointerOwnerTransformationContext.verifyCompleteTransformation
     verifyPointerOwnerCalls(selected)
     if (hasLongPress) verifyLongPressEntryCopies()
     verifyCleanupCalls(selected)
-    pointerOwnerMethod.requireExactPatchedPointerOwnerFingerprint()
-}
-
-private fun MutableMethod.requireExactPatchedPointerOwnerFingerprint() {
-    check(GboardVersionBindings.targetVersion in setOf("18.0.3", "18.5.4")) {
-        "Unsupported patched pointer-owner contract for ${GboardVersionBindings.targetVersion}"
-    }
-    // Exact descriptors, semantic stock checks, selected call order, and
-    // register invariants are verified before this point.
+    // Exact descriptors, semantic stock checks, selected call order, and register invariants
+    // are all verified above, so no separate version allowlist applies to the patched result.
 }
 
 private fun GboardPointerOwnerTransformationContext.verifyLongPressEntryCopies() {

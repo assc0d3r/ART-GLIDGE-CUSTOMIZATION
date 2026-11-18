@@ -324,16 +324,17 @@ private fun Set<GboardGestureFamilyFeature>.selectedGestureStages():
         .filter { stage -> stage.feature in this }
         .sortedBy(GboardGestureFamilyStage::order)
 
+// 18.0.3, 18.5.4 and 18.6.3 all compile the stock boundary to the same three-instruction
+// forward (iget-object / invoke-interface-range / return-void), so the exact shape below is
+// what decides support. A version allowlist here would reject the retargeted 18.6.3 build
+// whose gesture bindings are already generated from this APK.
 private fun MutableMethod.requireSupportedGestureStock() {
-    check(GboardVersionBindings.targetVersion in setOf("18.0.3", "18.5.4")) {
-        "Unsupported Gboard gesture stock contract for ${GboardVersionBindings.targetVersion}"
-    }
-    requireExact1803GestureStockShape()
+    requireExactGestureStockShape()
 }
 
-private fun MutableMethod.requireExact1803GestureStockShape() {
+private fun MutableMethod.requireExactGestureStockShape() {
     val implementation = implementation
-        ?: error("No instructions in formal 18.0.3 gesture dispatch target")
+        ?: error("No instructions in the gesture dispatch target")
     val instructions = implementation.instructions
     val layout = GestureRegisterLayout.from(GboardVersionBindings.gestureDispatch)
     val fieldRead = instructions.getOrNull(0) as? TwoRegisterInstruction
@@ -356,7 +357,7 @@ private fun MutableMethod.requireExact1803GestureStockShape() {
             GboardVersionBindings.gestureStockDispatch.matches(dispatchReference) &&
             instructions[2].opcode == Opcode.RETURN_VOID
     ) {
-        "18.0.3 gesture stock forwarding boundary drift in $definingClass->$name"
+        "Gesture stock forwarding boundary drift in $definingClass->$name"
     }
 }
 
