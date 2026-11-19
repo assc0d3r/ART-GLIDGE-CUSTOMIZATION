@@ -4,6 +4,7 @@ import app.morphe.patcher.patch.Patch
 import app.morphe.patcher.patch.ResourcePatchBuilder
 import dev.jason.gboardpatches.patches.gboard.features.accesspointsmenu.gboardAccessPointsMenu1853Patch
 import dev.jason.gboardpatches.patches.gboard.features.accesspointsmenu.gboardAccessPointsMenuFlagValuePatch
+import dev.jason.gboardpatches.patches.gboard.shared.generated.GboardTargetAdmission
 import dev.jason.gboardpatches.patches.gboard.features.cursortrackpad.gboardCursorTrackpadFlagValuePatch
 import dev.jason.gboardpatches.patches.gboard.features.cursortrackpad.gboardCursorTrackpadPreferencePatch
 import dev.jason.gboardpatches.patches.gboard.features.writingtools.gboardAiWritingToolsFlagValuePatch
@@ -40,6 +41,9 @@ import dev.jason.gboardpatches.patches.gboard.features.languagemodels.gboardLang
 import dev.jason.gboardpatches.patches.gboard.features.languagemodels.gboardLanguageModelHmmPatch
 import dev.jason.gboardpatches.patches.gboard.features.languagemodels.gboardLanguageModelDecoderPatch
 
+/** The only target the 18.5.4 access-point menu bytecode knows how to patch. */
+internal const val GBOARD_ACCESS_POINTS_MENU_1853_TARGET = "18.5.4"
+
 internal class GboardContributionWiringUnit(
     val contributionIds: Set<String>,
     private val dependencySupplier: () -> Array<Patch>,
@@ -61,7 +65,17 @@ internal object GboardContributionWiring {
         ),
         "access_points_menu_style" to listOf(
             unit("access_points_menu_style.flag") { arrayOf(gboardAccessPointsMenuFlagValuePatch) },
-            unit("access_points_menu_style.bytecode") { arrayOf(gboardAccessPointsMenu1853Patch) },
+            // The bytecode half was written against 18.5.4's access-point menu and its panel
+            // contract (Lmwv/Lmsx/Lmte/Lmtc/Lpms) is gone from 18.6.3, so resolving it there can
+            // only throw and abort the whole run. Wire it only for the build target it was
+            // written for; 18.6.3 keeps the flag half, which stock code honours on its own.
+            unit("access_points_menu_style.bytecode") {
+                if (GboardTargetAdmission.targetVersion == GBOARD_ACCESS_POINTS_MENU_1853_TARGET) {
+                    arrayOf(gboardAccessPointsMenu1853Patch)
+                } else {
+                    emptyArray()
+                }
+            },
         ),
         "enable_cursor_trackpad_mode" to listOf(
             unit("enable_cursor_trackpad_mode.flag") { arrayOf(gboardCursorTrackpadFlagValuePatch) },
