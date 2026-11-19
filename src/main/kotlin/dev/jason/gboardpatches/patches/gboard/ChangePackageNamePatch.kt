@@ -50,8 +50,10 @@ private fun String.renameOwnPermission(old: String, new: String): String =
 val gboardChangePackageNamePatch = resourcePatch(
     name = "Change package name",
     description = "Installs Gboard under its own package name, alongside the stock Gboard that most phones have built in. " +
-        "On by default, because a patched copy cannot replace the built-in Gboard.",
-    default = true,
+        "Off by default: Gboard features that are tied to the stock package name keep working only when the " +
+        "package is left alone. Enabling it requires uninstalling the built-in Gboard first, because a patched " +
+        "copy is not signed with Google's key.",
+    default = false,
 ) {
     compatibleWith(gboard)
     dependsOn(originalInput)
