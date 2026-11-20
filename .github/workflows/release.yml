@@ -100,23 +100,82 @@ jobs:
 
       - name: Prepare Release Notes
         run: |
+          set -euo pipefail
           cat << 'EOF' > release-notes.md
           ### Gboard Enhancement Patches Suite
 
-          #### ✨ Features
-          - **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization (fade speed, dynamic Rainbow RGB, color wheel, stroke thickness, and tail length decay).
-          - **Backspace Repeat Haptic Feedback**: Delivers continuous tactile pulses on each repeated character deletion when holding down the backspace key (with empty text suppression and settings toggle).
-          - **Enter Key Tasker Event**: Dispatches a high-priority Android Intent broadcast (`dev.custom.gboard.ENTER_PRESSED`) to Tasker whenever the Enter or IME action key is pressed, including active package, action type, and cursor text.
-          - **AMOLED Gboard Settings**: Pure-black settings rows for Gboard's preference screens.
-          - **Gboard Theme Builder**: In-app key colour, corner-radius and live preview editor, saved to and applied by the patch runtime.
-          - **Keyboard Icon Packs**: Imports `.wmicons.zip` packs from storage and overrides key icons.
-          - **Multilingual Suggestion**: Promotes glide and typing suggestions written in a different script.
-          - **Morphe Independent Selection**: All patches can be individually enabled or combined together in Morphe Manager.
+          A Morphe/ReVanced bytecode and resource patch suite for Gboard
+          (`com.google.android.inputmethod.latin`). PATCH_COUNT patches are bundled and every one of
+          them can be selected on its own or combined in Morphe Manager.
 
-          #### 🎯 Supported Gboard Versions
-          - `18.6.3.1002251336-release-arm64-v8a` (verified: all patches apply)
-          - `18.0.3.954559732-release-arm64-v8a`
-          - Any other version via the experimental target
+          #### ✨ Typing, gestures and input
+          - **Per-app profiles**: incognito, no suggestions, toolbar order and theme or keyboard
+            height per app, with a session override for the app in focus.
+          - **Swipe Left to Delete**: sliding left anywhere on the keyboard acts as backspace;
+            keep holding to delete whole words.
+          - **Smart bar case swipe**: swipe a suggested word up to capitalize it, down to lowercase it.
+          - **Spacebar double-tap undo/redo**, **English QWERTY Flick Case** (up for uppercase, down
+            for lowercase), **Field adaptation** for search, URL, email, password and code fields,
+            **Multilingual Suggestion**, **Swipe Down to Dismiss Keyboard**, **Swipeable Custom Top
+            Row**, **Cursor trackpad mode**, **Keypress Vibration Intensity Control**,
+            **Latin Globe Key Ignore Interval**, **Long-Press Editing Shortcuts**,
+            **Backspace Repeat Haptic Feedback** and **Enter Key Tasker Event** (Intent broadcast to
+            Tasker, `dev.custom.gboard.ENTER_PRESSED`).
+
+          #### 🎨 Themes, keys and visual effects
+          - **Glide Trail Customization** (fade speed, thickness, tail length, Rainbow RGB and an HSV
+            colour wheel), **Gboard Theme Builder**, **Custom Theme** ZIP import and theme packs,
+            **Keyboard Icon Packs**, **Frosted Glass**, **Glass Panel**, **Glass Press Effect**,
+            **Translucent Bottom Bar**, **Rounded Keyboard Panel**, **Key Shape Selection**,
+            **Immersive Keyboard**, **Theme Follows Dark Mode**, **AMOLED Gboard Settings**,
+            **AMOLED dark keyboard**, **G Logo on Spacebar**, **Emoji Key On Right** and
+            **Change emoji size**.
+
+          #### 🎙️ Voice typing
+          - **Parakeet voice typing** on the phone (no Google server round-trip), plus **Rambler
+            voice typing** with **Rambler personal dictionary**, **Rambler contact names**,
+            **Rambler custom instructions**, **Rambler cursor-aware editing**, **Rambler app
+            context** and **Rambler stop after silence**. Also **Parakeet personal dictionary**,
+            **Advanced Voice Typing**, **Use Bluetooth Microphone** and **Enable OCR / Scan Text**.
+
+          #### ✍️ Text, suggestions and editing
+          - **AI Writing Tools** (proofread, rewrite, tone), **Grammar Checker**, **Inline
+            Suggestions**, **Enable Inline Autofill Suggestions**, **Simple Calculator**,
+            **Close Proactive Suggestions** and **Dictionaries & Predictions** resource versions.
+
+          #### 📋 Clipboard, toolbar and quick actions
+          - **Web Clipboard** with browser sync, **Clipboard Enhancements**, **Clipboard Custom
+            Character Limit**, **Quick Insert**, **Top Toolbar Item Count**, **Toolbar Editing
+            Buttons**, **Custom Symbols**, **Access Points menu style**, **Incognito Mode Toggle**,
+            **FTP Server** and **Floating Web Search**.
+
+          #### ⌨️ Layouts
+          - **iOS QWERTY layout**, **iOS flick layout**, **Enable split keyboard**, **Enable
+            accessibility layout**, **Zhuyin Slide Input**, **Zhuyin Bottom Row Key Sizes**,
+            **Zhuyin Quick Traditional/Simplified Toggle** and **Emojis, stickers & GIFs Tab Order**.
+
+          #### ⚙️ Settings and branding
+          - **Keyboard Settings** inside Gboard, **Settings Homepage Override**, **Developer
+            options** and the Flag Editor, **Backup & Restore**, **Change package name** and
+            **Custom branding**.
+
+          #### 🔒 Privacy and clean-up
+          - **Block Trackers**, **Block App Hijacking**, **Stop Remote Updates**, **Stop Background
+            Sync**, **Disable Cloud
+            Backup**, **Remove Permissions**, **Offline Only**, **Remove Extra Files**, **Disable
+            Play Services**, **Remove Translate Limit**, **Key Mapper Watchdog** and **Add Gboard
+            Signature Bypass**.
+
+          #### 🎯 Supported Gboard versions
+          - `18.6.3.1002251336-release-arm64-v8a`: all PATCH_COUNT patches.
+          - `18.5.4.993608717-release-arm64-v8a`: the newer additions, including the per-app
+            profiles, swipe and case-swipe patches, glass effects and Field adaptation (11 patches).
+          - `18.0.3.954559732-release-arm64-v8a` and `18.0.3`: the three original patches (Glide
+            Trail Customization, Backspace Repeat Haptic Feedback, Enter Key Tasker Event).
+
+          #### ⚠️ Known limitations
+          - Block Trackers, Keyboard Settings and Stop Remote Updates do not currently apply to
+            18.6.3; selecting them is skipped instead of failing the run.
 
           #### 📱 Add to Morphe App
           1. Open the **Morphe** app on your Android device.
@@ -127,6 +186,9 @@ jobs:
              ```
           4. Return to **Patcher**, select Gboard, select your patches, and patch!
           EOF
+          COUNT="$(jq '.patches | length' patches-list.json)"
+          sed -i "s/PATCH_COUNT/${COUNT}/" release-notes.md
+          grep -n "patches are bundled" release-notes.md
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
