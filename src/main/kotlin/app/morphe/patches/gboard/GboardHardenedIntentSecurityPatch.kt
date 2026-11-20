@@ -188,6 +188,10 @@ val gboardHardenedIntentSecurityPatch = bytecodePatch(
     compatibleWith(Constants.COMPATIBILITY_GBOARD)
     dependsOn(gboardRemoveWebDebugBridgePatch)
 
+    // Gboard's own `prevent_external_intents` switch is deliberately left at its stock value.
+    // Forcing it on blocks every hand-off to another app, which breaks the system spell checker
+    // and Smart Replies settings pages ("Opening external app is blocked"), so it is not part of
+    // the hardening here.
     execute {
         val fingerprint = Fingerprint(
             name = "<clinit>",
@@ -195,14 +199,7 @@ val gboardHardenedIntentSecurityPatch = bytecodePatch(
             filters = listOf(string("prevent_external_intents")),
         )
 
-        val matchIndex = fingerprint.instructionMatches.first().index
-        val reg = fingerprint.method.getInstruction<OneRegisterInstruction>(matchIndex + 1).registerA
-        fingerprint.method.addInstructions(
-            matchIndex + 2,
-            "const/4 v$reg, 0x1",
-        )
-
         val targetClass = cleanClassName(fingerprint.originalClassDef.type)
-        println("[Block App Hijacking] Injected flag override into $targetClass.<clinit>() at opcode index ${matchIndex + 2}")
+        println("[Block App Hijacking] Kept the stock external-intent policy in $targetClass.<clinit>().")
     }
 }
