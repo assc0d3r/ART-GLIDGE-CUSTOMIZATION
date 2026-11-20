@@ -107,6 +107,19 @@ cd gboard-enc-patches
 ```
 
 Compiled outputs will be located in `dist/`:
-- `dist/patches-1.4.2.mpp`: Release bundle for Morphe Manager.
-- `dist/gboard-backspace-haptics.jar`: Standard JAR format.
+- `dist/patches-1.0.56.mpp`: Release bundle for Morphe Manager. The version comes from `version=` in `gradle.properties`, so the file name follows it.
+- `dist/gboard-backspace-haptics.jar`: The same bundle as a plain JAR, for local use.
+
+---
+
+## 🧾 Regenerating `patches-list.json`
+
+`patches-list.json` is the inventory asset the Morphe sources and the release workflow read, so it has to describe every patch the bundle actually offers. It is generated from a built bundle, never hand-edited. After `./build.sh`, regenerate it in place with:
+
+```bash
+java -cp "libs/morphe-cli.jar;libs/gson.jar" tools/bindings/Inventory.java dist/patches-$(sed -n 's/^version=//p' gradle.properties).mpp $(sed -n 's/^version=//p' gradle.properties) patches-list.json
+```
+
+Use `:` instead of `;` as the classpath separator on macOS/Linux. The command runs the generator straight from source (JDK 11+) against `dist/patches-<version>.mpp`; it keeps the existing entry order for patches that still exist, appends new ones in name order so the diff stays reviewable, and writes `patches-list.json` back in place. Pass a fourth argument to write somewhere else instead.
+
 
