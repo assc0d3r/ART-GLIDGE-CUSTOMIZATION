@@ -30,6 +30,7 @@ internal enum class GboardPointerOwnerFeature {
     LONG_PRESS_QUICK_ACTIONS,
     TOP_ROW_SWIPE,
     ZHUYIN_SLIDE,
+    SWIPE_LEFT_DELETE,
 }
 
 internal data class GboardPointerOwnerFeatureSpec(
@@ -42,6 +43,7 @@ internal val GBOARD_POINTER_OWNER_COMPOSITION_ORDER = listOf(
     GboardPointerOwnerFeature.LONG_PRESS_QUICK_ACTIONS,
     GboardPointerOwnerFeature.TOP_ROW_SWIPE,
     GboardPointerOwnerFeature.ZHUYIN_SLIDE,
+    GboardPointerOwnerFeature.SWIPE_LEFT_DELETE,
 )
 
 internal fun interface GboardPointerOwnerTransformationAdapter {
@@ -399,6 +401,28 @@ private val POINTER_RUNTIME_CALLS_BY_FEATURE = mapOf(
         pointerRuntimeAbi(
             RuntimeCallId.ZHUYIN_SLIDE_RUNTIME_CLEAR_POINTER_STATE,
             listOf("Ljava/lang/Object;"),
+            "V",
+        ),
+    ),
+    GboardPointerOwnerFeature.SWIPE_LEFT_DELETE to listOf(
+        pointerRuntimeAbi(
+            RuntimeCallId.SWIPE_LEFT_DELETE_RUNTIME_CAPTURE_KEY,
+            listOf("Ljava/lang/Object;"),
+            "V",
+        ),
+        pointerRuntimeAbi(
+            RuntimeCallId.SWIPE_LEFT_DELETE_RUNTIME_HANDLE_TOUCH,
+            listOf("Ljava/lang/Object;", "Landroid/view/MotionEvent;", "I"),
+            "Z",
+        ),
+        pointerRuntimeAbi(
+            RuntimeCallId.SWIPE_LEFT_DELETE_RUNTIME_RESET,
+            emptyList(),
+            "V",
+        ),
+        pointerRuntimeAbi(
+            RuntimeCallId.SWIPE_LEFT_DELETE_RUNTIME_ON_POINTER_FINISH,
+            emptyList(),
             "V",
         ),
     ),
@@ -869,6 +893,18 @@ private fun MutableMethod.countCalls(descriptor: MethodCall): Int =
     implementation?.instructions.orEmpty().count { instruction ->
         instruction.methodReference()?.matches(descriptor) == true
     }
+
+/** Number of family cleanup invokes the sibling features place at the method entry. */
+internal fun MutableMethod.pointerOwnerEntryCleanupCount(): Int {
+    val instructions = implementation?.instructions ?: return 0
+    var offset = 0
+    while (offset < instructions.size) {
+        val reference = instructions[offset].methodReference() ?: break
+        if (ALL_TRANSFORMATION_CALLS.none(reference::matches)) break
+        offset++
+    }
+    return offset
+}
 
 private fun MutableMethod.transformationCallIndices(): List<Pair<Int, MethodCall>> =
     implementation?.instructions.orEmpty().mapIndexedNotNull { index, instruction ->
