@@ -8,11 +8,18 @@
 
 A standalone, Morphe/ReVanced-compatible bytecode and resource patch suite for **Gboard** (`com.google.android.inputmethod.latin`).
 
-This repository provides three independent patches that can be selected individually or together in the **Morphe** app alongside other third-party patch sources:
+The bundle ships 88 independent patches: every one can be selected on its own or combined in the **Morphe** app alongside other third-party patch sources. They are grouped by what they change:
 
-1. **Backspace Repeat Haptic Feedback**: Introduces continuous tactile feedback pulses when the backspace key is held down during repeated character deletion (with empty text suppression and a dedicated settings toggle).
-2. **Enter Key Tasker Event**: Broadcasts a high-priority Android Intent event to **Tasker** whenever the Enter key or bottom-right IME Action key is pressed, including active app package name, action type, raw keycode, and preceding text.
-3. **Glide Trail Customization**: Samsung Keyboard / Good Lock (Keys Cafe) style glide typing trail customization. Allows customizing trail speed (fade duration), dynamic Rainbow RGB spectrum, solid custom color via an interactive HSV Color Wheel with presets, thickness, and length decay.
+- **Typing, gestures and input**: per-app profiles (incognito, no suggestions, toolbar order and theme or keyboard height per app), swipe left anywhere to delete, swipe a suggested word to change its case, spacebar double-tap undo/redo, English QWERTY up/down flick case, field adaptation for search, URL, email, password and code fields, multilingual suggestions, swipe down to dismiss, cursor trackpad, keypress vibration intensity, long-press editing shortcuts, backspace repeat haptics and the Tasker Intent event.
+- **Themes, keys and visual effects**: Gboard Theme Builder, glide trail customization (speed, thickness, tail length, Rainbow RGB, HSV colour wheel), Custom Theme ZIP import and theme packs, icon packs, Frosted Glass, Glass Panel and Glass Press Effect, translucent bottom bar, rounded keyboard panel, key shape selection, immersive keyboard, theme that follows dark mode, AMOLED settings and dark keyboard, G logo on the spacebar, emoji key position and emoji size.
+- **Voice typing**: Parakeet on-device voice typing and its personal dictionary, the Rambler cloud voice typing family (personal dictionary, contact names, custom instructions, cursor-aware editing, app context, stop after silence), Advanced Voice Typing, Bluetooth microphone and OCR / Scan Text.
+- **Text, suggestions and editing**: AI Writing Tools (proofread, rewrite, tone), grammar check, inline suggestions, inline autofill, simple calculator, proactive suggestion dismiss button and dictionary / prediction resource versions.
+- **Clipboard, toolbar and quick actions**: Web Clipboard with browser sync, clipboard retention and character-limit controls, Quick Insert, toolbar item count and editing buttons, custom symbols, Access Points menu style, Incognito toggle, FTP server and floating web search.
+- **Layouts**: iOS QWERTY and iOS flick layouts, split and accessibility layouts, Zhuyin slide input, bottom-row key sizes and Traditional/Simplified toggle, emoji/sticker/GIF tab order.
+- **Settings and branding**: a Keyboard Settings screen inside Gboard, settings homepage override, Developer options and Flag Editor, Backup & Restore, Change package name and Custom branding.
+- **Privacy and clean-up**: Block Trackers, Block App Hijacking, Stop Remote Updates, Stop Background Sync, Disable Cloud Backup, Remove Permissions, Offline Only, Remove Extra Files, Disable Play Services, Remove Translate Limit, Key Mapper Watchdog and the Gboard signature bypass.
+
+The full inventory, including descriptions, default on/off state and supported versions, is `patches-list.json` and the patch list inside Morphe. The three sections further down still document the original patches (Backspace Repeat Haptic Feedback, Enter Key Tasker Event and Glide Trail Customization) in depth.
 
 ---
 
@@ -29,11 +36,8 @@ This repository provides three independent patches that can be selected individu
 
 2. **Patch Gboard**:
    - In Morphe, navigate to the **Patcher** tab.
-   - Select **Gboard** (`18.0.3.954559732-release-arm64-v8a` or compatible).
-   - In the patch selection list, you will see all available patches:
-     - ☑️ **Backspace Repeat Haptic Feedback**
-     - ☑️ **Enter Key Tasker Event**
-     - ☑️ **Glide Trail Customization**
+   - Select **Gboard** (`18.6.3.1002251336-release-arm64-v8a` applies every patch; `18.5.4.993608717-release-arm64-v8a` and `18.0.3.954559732-release-arm64-v8a` cover subsets).
+   - In the patch selection list you will find all 88 patches, grouped by category (typing and gestures, themes and visual effects, voice typing, text tools, clipboard and toolbar, layouts, settings and branding, privacy and clean-up).
    - Select the patches you desire and tap **Patch**!
    - Install the generated APK.
 
