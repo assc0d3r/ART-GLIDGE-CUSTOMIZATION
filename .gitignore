@@ -19,3 +19,6 @@ local.properties
 
 # Local scratch (upstream clones, dexquery output, screenshots)
 tmp/
+
+# Python bytecode cache
+__pycache__/
