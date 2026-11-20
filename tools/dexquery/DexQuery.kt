@@ -68,7 +68,7 @@ fun main(args: Array<String>) {
                     val insns: List<com.android.tools.smali.dexlib2.iface.instruction.Instruction> =
                         method.implementation?.instructions?.toList() ?: emptyList()
                     val hits = insns
-                        .filter { it.opcode.name.startsWith("CONST_STRING") }
+                        .filter { it.opcode.name.startsWith("const-string") }
                         .mapNotNull { (it as? ReferenceInstruction)?.reference as? StringReference }
                         .map { it.string }
                         .filter { it.contains(needle, ignoreCase = true) }
@@ -117,7 +117,8 @@ fun main(args: Array<String>) {
                     println("--- ${classDef.type}->${method.name}(${method.parameterTypes.joinToString("")})${method.returnType} regs=${method.implementation?.registerCount ?: 0} flags=${flags(method.accessFlags)}")
                     method.implementation?.instructions?.forEachIndexed { index, instruction ->
                         val ref = if (instruction is ReferenceInstruction) " " + instruction.reference.toString() else ""
-                        println("  $index: ${instruction.opcode.name}$ref")
+                        val literal = (instruction as? WideLiteralInstruction)?.let { " = " + it.wideLiteral } ?: ""
+                        println("  $index: ${instruction.opcode.name}$literal$ref")
                     }
                 }
             }
@@ -142,6 +143,19 @@ fun main(args: Array<String>) {
                         println("${classDef.type}->${method.name}(${method.parameterTypes.joinToString("")})${method.returnType} size=${method.implementation?.instructions?.count() ?: 0} flags=${flags(method.accessFlags)}")
                     }
                 }
+            }
+        }
+        "insns" -> {
+            // insns <class> <method> <paramList>   e.g. insns Lcom/.../SoftKeyView; onTouchEvent Landroid/view/MotionEvent;
+            val wanted = args[2]
+            val methodName = args[3]
+            val paramList = parseParamList(args.getOrNull(4).orEmpty())
+            classes.filter { it.type == wanted }.forEach { classDef ->
+                classDef.methods.filter { it.name == methodName && it.parameterTypes == paramList }
+                    .forEach { method ->
+                        println("${classDef.type}->$methodName(${method.parameterTypes.joinToString("")})${method.returnType} regs=${method.implementation?.registerCount}")
+                        method.implementation?.instructions?.forEach { println("  $it") }
+                    }
             }
         }
         "newinst" -> {
@@ -195,6 +209,21 @@ fun main(args: Array<String>) {
                         reference != null && reference.definingClass == classType && reference.name == bareName
                     } ?: false
                     if (calls) println("${classDef.type}->${method.name}(${method.parameterTypes.joinToString("")})${method.returnType}")
+                }
+            }
+        }
+        "idrefs" -> {
+            // idrefs <literal>   methods that load the given integer constant (resource ids, pref ids)
+            val literal = if (args[2].startsWith("0x")) args[2].substring(2).toLong(16) else args[2].toLong()
+            classes.forEach { classDef ->
+                classDef.methods.forEach { method ->
+                    val insns = method.implementation?.instructions?.toList() ?: return@forEach
+                    insns.forEachIndexed { index, instruction ->
+                        val value = (instruction as? WideLiteralInstruction)?.wideLiteral ?: return@forEachIndexed
+                        if (value != literal) return@forEachIndexed
+                        println("${classDef.type}->${method.name}(${method.parameterTypes.joinToString("")})${method.returnType} @$index")
+                        insns.drop(index).take(4).forEach { println("     $it") }
+                    }
                 }
             }
         }
