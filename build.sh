@@ -6,7 +6,7 @@ DIST_DIR="${SCRIPT_DIR}/dist"
 BUILD_DIR="${SCRIPT_DIR}/build/classes"
 LIBS_DIR="${SCRIPT_DIR}/libs"
 
-echo "=== Building Gboard Backspace Continuous Haptics Patch ==="
+echo "=== Building Gboard Enhancement Patches Suite ==="
 
 # 1. Resolve Version from gradle.properties
 VERSION="$(grep -m1 '^version=' "${SCRIPT_DIR}/gradle.properties" | cut -d'=' -f2 | tr -d ' ')"
@@ -173,7 +173,7 @@ TIMESTAMP="$(date +%s000)"
 cat << EOF > "${MANIFEST_FILE}"
 Manifest-Version: 1.0
 Name: Gboard Custom Patches
-Description: Custom enhancement patches for Gboard (Backspace Continuous Haptics, Glide Typing Trail Customization, Enter Key Tasker Event).
+Description: Custom enhancement patches for Gboard: typing profiles and swipe gestures, themes and key visuals, voice typing, clipboard, automation and privacy.
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
 Source: https://github.com/ausamnco/gboard-enc-patches
