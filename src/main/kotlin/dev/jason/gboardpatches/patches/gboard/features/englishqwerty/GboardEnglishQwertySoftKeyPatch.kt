@@ -20,7 +20,7 @@ private val softKeyMetadataType: String
 
 // Every type the generated bodies below build with was renamed for 18.6.3. The mapping is kept
 // here, once, so the smali templates stay readable:
-//   pointer event enum     Lqae; -> Lpuc;  (PRESS=a, LONG_PRESS=b, SLIDE_UP=c)
+//   pointer event enum     Lqae; -> Lpuc;  (PRESS=a, LONG_PRESS=b, SLIDE_UP=c, SLIDE_DOWN=d)
 //   ActionDef builder      Lqaf; -> Lpud;  (field `a` = event, c() materialises the ActionDef)
 //   action parameter type  Lqbb; -> Lpuz;  (c = COMMIT)
 //   action parameter       Lqbc; -> Lpva;  (field `e` = the value)
@@ -34,12 +34,13 @@ private const val SOFT_KEY_BUILDER = "Lpwt;"
 private const val METADATA_LIST_TYPE = "Lwhe;"
 
 internal val gboardEnglishQwertySoftKeyPatch = gboardSoftKeyFamilyFeaturePatch(
-    description = "在 18.5.4 English QWERTY bind time 注入缺少的上滑大小寫 action。",
+    description = "在 English QWERTY bind time 注入上滑大寫與下滑小寫 action。",
     feature = GboardSoftKeyFamilyFeature.ENGLISH_QWERTY,
 )
 
 internal val GBOARD_ENGLISH_SOFT_KEY_HELPER_NAMES = setOf(
     "jasondevToggleAsciiCase",
+    "jasondevToLowerAscii",
     "jasondevResolvePrimaryLabel",
     "jasondevResolvePressPayload",
     "jasondevIsEnglishQwertyKeyId",
@@ -54,6 +55,14 @@ internal fun MutableClass.installGboardEnglishQwertySoftKeyHelpers() {
         accessFlags = AccessFlags.PRIVATE.value or AccessFlags.STATIC.value,
         registerCount = 3,
         body = TOGGLE_ASCII_CASE_BODY
+    )
+    addHelperMethodIfMissing(
+        name = "jasondevToLowerAscii",
+        parameterTypes = listOf("Ljava/lang/String;"),
+        returnType = "Ljava/lang/String;",
+        accessFlags = AccessFlags.PRIVATE.value or AccessFlags.STATIC.value,
+        registerCount = 3,
+        body = TO_LOWER_ASCII_BODY
     )
     addHelperMethodIfMissing(
         name = "jasondevResolvePrimaryLabel",
@@ -140,6 +149,60 @@ private val TOGGLE_ASCII_CASE_BODY = """
     invoke-static {v0}, Ljava/lang/String;->valueOf(C)Ljava/lang/String;
 
     move-result-object p0
+
+    return-object p0
+
+    :cond_invalid
+    const/4 p0, 0x0
+
+    return-object p0
+""".trimIndent()
+
+// Always yields the lowercase form, so a down flick overrides whatever case the keyboard is in
+// (including the temporary shift that auto-capitalisation puts on the first letter of a field).
+private val TO_LOWER_ASCII_BODY = """
+    if-eqz p0, :cond_invalid
+
+    invoke-virtual {p0}, Ljava/lang/String;->length()I
+
+    move-result v0
+
+    const/4 v1, 0x1
+
+    if-ne v0, v1, :cond_invalid
+
+    const/4 v0, 0x0
+
+    invoke-virtual {p0, v0}, Ljava/lang/String;->charAt(I)C
+
+    move-result v0
+
+    const/16 v1, 0x41
+
+    if-lt v0, v1, :cond_check_lower
+
+    const/16 v1, 0x5a
+
+    if-gt v0, v1, :cond_check_lower
+
+    add-int/lit8 v0, v0, 0x20
+
+    int-to-char v0, v0
+
+    invoke-static {v0}, Ljava/lang/String;->valueOf(C)Ljava/lang/String;
+
+    move-result-object p0
+
+    return-object p0
+
+    :cond_check_lower
+    const/16 v1, 0x61
+
+    if-lt v0, v1, :cond_invalid
+
+    const/16 v1, 0x7a
+
+    if-gt v0, v1, :cond_invalid
 
     return-object p0
 
@@ -397,23 +460,43 @@ private val PATCH_INCOMING_METADATA_BODY = """
 
     move-result-object v3
 
-    if-eqz v3, :cond_return_original_safe
+    invoke-static {v1}, $SOFT_KEY_VIEW_CLASS->jasondevToLowerAscii(Ljava/lang/String;)Ljava/lang/String;
 
-    if-eqz v2, :cond_build_action
+    move-result-object v9
 
-    invoke-static {v2}, $SOFT_KEY_VIEW_CLASS->jasondevToggleAsciiCase(Ljava/lang/String;)Ljava/lang/String;
+    if-nez v3, :cond_check_slide_down
 
-    move-result-object v0
+    goto :cond_build_metadata
 
-    if-eqz v0, :cond_return_original_safe
+    :cond_check_slide_down
+    if-nez v9, :cond_return_original_safe
 
-    :cond_build_action
+    :cond_build_metadata
     new-instance v4, $SOFT_KEY_BUILDER
 
     invoke-direct {v4}, $SOFT_KEY_BUILDER-><init>()V
 
     invoke-virtual {v4, p1}, $SOFT_KEY_BUILDER->k(Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;)V
 
+    if-eqz v3, :cond_skip_slide_up
+
+    sget-object v0, $EVENT_TYPE->c:$EVENT_TYPE
+
+    invoke-virtual {p1, v0}, Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;->g($EVENT_TYPE)Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
+
+    move-result-object v0
+
+    if-nez v0, :cond_skip_slide_up
+
+    if-eqz v2, :cond_build_slide_up
+
+    invoke-static {v2}, $SOFT_KEY_VIEW_CLASS->jasondevToggleAsciiCase(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v3
+
+    if-eqz v3, :cond_skip_slide_up
+
+    :cond_build_slide_up
     new-instance v5, $ACTION_BUILDER
 
     invoke-direct {v5}, $ACTION_BUILDER-><init>()V
@@ -442,10 +525,46 @@ private val PATCH_INCOMING_METADATA_BODY = """
 
     move-result-object v5
 
-    if-eqz v5, :cond_return_original_safe
+    if-eqz v5, :cond_skip_slide_up
 
     invoke-virtual {v4, v5}, $SOFT_KEY_BUILDER->o(Lcom/google/android/libraries/inputmethod/metadata/ActionDef;)V
 
+    :cond_skip_slide_up
+    if-eqz v9, :cond_skip_slide_down
+
+    new-instance v10, $ACTION_BUILDER
+
+    invoke-direct {v10}, $ACTION_BUILDER-><init>()V
+
+    sget-object v11, $EVENT_TYPE->d:$EVENT_TYPE
+
+    iput-object v11, v10, $ACTION_BUILDER->a:$EVENT_TYPE
+
+    const/4 v11, 0x1
+
+    new-array v12, v11, [Ljava/lang/String;
+
+    const/4 v11, 0x0
+
+    aput-object v9, v12, v11
+
+    invoke-virtual {v10, v12}, $ACTION_BUILDER->t([Ljava/lang/String;)V
+
+    const v12, -0x2719
+
+    sget-object v13, $ACTION_PARAM_TYPE->c:$ACTION_PARAM_TYPE
+
+    invoke-virtual {v10, v12, v13, v9}, $ACTION_BUILDER->s(I${ACTION_PARAM_TYPE}Ljava/lang/Object;)V
+
+    invoke-virtual {v10}, $ACTION_BUILDER->c()Lcom/google/android/libraries/inputmethod/metadata/ActionDef;
+
+    move-result-object v10
+
+    if-eqz v10, :cond_skip_slide_down
+
+    invoke-virtual {v4, v10}, $SOFT_KEY_BUILDER->o(Lcom/google/android/libraries/inputmethod/metadata/ActionDef;)V
+
+    :cond_skip_slide_down
     invoke-virtual {v4}, $SOFT_KEY_BUILDER->b()Lcom/google/android/libraries/inputmethod/metadata/SoftKeyDef;
 
     move-result-object v0

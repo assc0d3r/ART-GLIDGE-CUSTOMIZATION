@@ -1145,7 +1145,7 @@
     },
     {
       "feature_id": "english_qwerty_up_flick_uppercase",
-      "public_patch_name": "English QWERTY Up-Flick Uppercase",
+      "public_patch_name": "English QWERTY Flick Case",
       "feature_marker": "dev.jason.gboardpatches.feature.english_uppercase_toggle",
       "target_family_ids": [
         "englishqwerty",

@@ -169,8 +169,8 @@ val gboardZhuyinSlideInputPatch = gboardPublicResourcePatch(
 @Suppress("unused")
 val gboardEnglishQwertySlideUppercaseTogglePatch = gboardPublicResourcePatch(
     featureId = "english_qwerty_up_flick_uppercase",
-    name = "English QWERTY Up-Flick Uppercase",
-    description = "英文 QWERTY 鍵盤上滑大小寫\nFlick up on the English QWERTY keyboard to toggle uppercase and lowercase.",
+    name = "English QWERTY Flick Case",
+    description = "英文 QWERTY 鍵盤上滑大寫、下滑小寫\nFlick up for uppercase and flick down for lowercase on the English QWERTY keyboard. Flicking down also overrides auto-capitalization.",
     default = true
 ) {
     compatibleWith(COMPATIBILITY_GBOARD)
