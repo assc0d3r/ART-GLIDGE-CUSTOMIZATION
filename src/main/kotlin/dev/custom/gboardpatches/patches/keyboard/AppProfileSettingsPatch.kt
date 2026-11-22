@@ -156,8 +156,11 @@ internal fun applyAppProfileSettings(document: Document) {
                 "summary",
                 "Rule for the app you are using. Leave empty to turn profiles off. " +
                     "com.example matches one app, com.example* matches every app starting " +
-                    "with it, and #text, #url, #email, #password or #number can follow the " +
-                    "package to limit the rule to that kind of field.",
+                    "with it, and #text, #email, #url, #number, #phone, #date, #time, " +
+                    "#datetime, #secure (a password or PIN field) or #terminal (a field with no " +
+                    "type, such as a terminal prompt) can follow the package to limit the rule " +
+                    "to that kind of field. A rule that names a field class also keeps " +
+                    "suggestions and learning off there, since only a plain text field keeps them.",
             )
             setAndroidAttribute("key", PREF_KEY_APP_PROFILE_PACKAGE)
             setAndroidAttribute("defaultValue", "")
@@ -270,7 +273,7 @@ internal fun applyAppProfileSettings(document: Document) {
                 "One rule per line, package=tokens with the same tokens as above, for example:\n" +
                     "com.bank=incognito\n" +
                     "com.example*#email=no_suggestions,theme:silk:dark\n" +
-                    "org.chat=toolbar:emoji;clipboard,height:keyboard_height_44_mm\n" +
+                    "org.chat=toolbar:emoji;clipboard,height:keyboard_height_47_mm\n" +
                     "A package on its own line, without =, clears that rule. Keep as many rules " +
                     "here as you need; the single rule above still works for its own app.",
             )

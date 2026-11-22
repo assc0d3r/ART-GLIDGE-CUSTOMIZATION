@@ -21,7 +21,9 @@ import java.util.Map;
  *
  * <pre>
  *   rules:  &lt;package&gt;                 every field of that app
- *           &lt;package&gt;#&lt;area&gt;          one kind of field (text, url, email, password, number, other)
+ *           &lt;package&gt;#&lt;area&gt;          one kind of field: text, email, url, number, phone, date,
+ *                                       time, datetime, secure (a password or PIN field) or
+ *                                       terminal (a field that reports no type at all)
  *           &lt;prefix&gt;*                 every package whose name starts with &lt;prefix&gt;
  *   value:  comma separated tokens: "incognito", "no_suggestions",
  *           "toolbar:&lt;id&gt;;&lt;id&gt;", "theme:&lt;theme spec&gt;", "height:&lt;height spec&gt;"
@@ -44,6 +46,34 @@ public final class AppProfileRuntime {
     private static final String PREFS_NAME = "gboard_app_profiles";
     private static final String AREA_SEPARATOR = "#";
     private static final String PREFIX_SUFFIX = "*";
+
+    /**
+     * The field classes the typing rules are written against, used as the {@code #area} suffix.
+     * They mirror what a field reports in its {@code inputType}: an email box, a browser address
+     * bar, a number pad, a phone field, a date, time or date-and-time picker, and a terminal, which
+     * is a field that reports no type at all. They are not user-visible names.
+     */
+    private static final String AREA_TEXT = "text";
+    private static final String AREA_EMAIL = "email";
+    private static final String AREA_URL = "url";
+    private static final String AREA_NUMBER = "number";
+    private static final String AREA_PHONE = "phone";
+    private static final String AREA_DATE = "date";
+    private static final String AREA_TIME = "time";
+    private static final String AREA_DATETIME = "datetime";
+    private static final String AREA_TERMINAL = "terminal";
+
+    /**
+     * A password field is not a class of its own: a masked text field is text and a PIN is a
+     * number, both secure. The secure area is matched ahead of the class so one rule covers both.
+     */
+    private static final String AREA_SECURE = "secure";
+
+    /** The area masked text fields used before the secure flag existed, kept as an alias. */
+    private static final String AREA_PASSWORD = "password";
+
+    /** A field class this runtime does not name: treated like a structured field. */
+    private static final String AREA_OTHER = "other";
 
     private static final String FLAG_INCOGNITO = "incognito";
     private static final String FLAG_NO_SUGGESTIONS = "no_suggestions";
@@ -102,6 +132,9 @@ public final class AppProfileRuntime {
     private static String ruleTheme;
     private static String ruleHeight;
     private static boolean overrideSet;
+
+    /** Set by a rule lookup: true when the rule it found named the field class itself. */
+    private static boolean ruleNamesArea;
     private static int overrideFlags;
 
     /** The package whose appearance overrides are currently written into Gboard's preferences. */
@@ -135,8 +168,15 @@ public final class AppProfileRuntime {
             // rule that applies to this field is read right after.
             syncSavedRules(context);
             String area = areaOf(info);
-            String value = context == null ? null : ruleValue(context, pkg, area);
+            boolean secure = isSecure(info);
+            ruleNamesArea = false;
+            String value = context == null ? null : ruleValue(context, pkg, areasOf(info));
             ruleFlags = parseFlags(value);
+            if (value != null && ruleNamesArea) {
+                // A rule that names the field class carries that class's rules with it: only a
+                // plain text field keeps suggestions and learning.
+                ruleFlags |= impliedAreaFlags(area, secure);
+            }
             ruleToolbar = tokenValue(value, TOKEN_TOOLBAR);
             ruleTheme = tokenValue(value, TOKEN_THEME);
             ruleHeight = tokenValue(value, TOKEN_HEIGHT);
@@ -658,7 +698,7 @@ public final class AppProfileRuntime {
      * {@code #area} suffix (text, url, email, password, number) limits it to one kind of field. The
      * toggles and the toolbar/theme fields below it become the value of that rule.
      */
-    private static String settingsValue(Context context, String pkg, String area) {
+    private static String settingsValue(Context context, String pkg, String[] areas) {
         try {
             SharedPreferences preferences = defaultPreferences(context);
             if (preferences == null) {
@@ -692,9 +732,11 @@ public final class AppProfileRuntime {
             if (!matches) {
                 return null;
             }
-            if (areaFilter != null && areaFilter.length() > 0 &&
-                !areaFilter.equalsIgnoreCase(area)) {
-                return null;
+            if (areaFilter != null && areaFilter.length() > 0) {
+                if (!namesArea(areas, areaFilter)) {
+                    return null;
+                }
+                ruleNamesArea = true;
             }
             StringBuilder value = new StringBuilder();
             if (preferences.getBoolean(SETTING_INCOGNITO, false)) {
@@ -713,6 +755,16 @@ public final class AppProfileRuntime {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    /** True when one of the field's rule keys is the area the rule asked for. */
+    private static boolean namesArea(String[] areas, String filter) {
+        for (String area : areas) {
+            if (area.equalsIgnoreCase(filter)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void appendToken(StringBuilder value, String token, String argument) {
@@ -1004,36 +1056,91 @@ public final class AppProfileRuntime {
         }
     }
 
-    /** Field kind used by {@code <package>#<area>} rules. */
+    /** The field class used by {@code <package>#<area>} rules; a field with no type is a terminal. */
     private static String areaOf(EditorInfo info) {
         int type = info.inputType;
         int cls = type & EditorInfo.TYPE_MASK_CLASS;
+        int variation = type & EditorInfo.TYPE_MASK_VARIATION;
+        if (cls == EditorInfo.TYPE_NULL) {
+            return AREA_TERMINAL;
+        }
         if (cls == EditorInfo.TYPE_CLASS_NUMBER) {
-            return "number";
+            return AREA_NUMBER;
+        }
+        if (cls == EditorInfo.TYPE_CLASS_PHONE) {
+            return AREA_PHONE;
+        }
+        if (cls == EditorInfo.TYPE_CLASS_DATETIME) {
+            if (variation == EditorInfo.TYPE_DATETIME_VARIATION_DATE) {
+                return AREA_DATE;
+            }
+            if (variation == EditorInfo.TYPE_DATETIME_VARIATION_TIME) {
+                return AREA_TIME;
+            }
+            return AREA_DATETIME;
         }
         if (cls != EditorInfo.TYPE_CLASS_TEXT) {
-            return "other";
+            return AREA_OTHER;
         }
-        int variation = type & EditorInfo.TYPE_MASK_VARIATION;
         switch (variation) {
             case EditorInfo.TYPE_TEXT_VARIATION_URI:
-                return "url";
+                return AREA_URL;
             case EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS:
             case EditorInfo.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS:
-                return "email";
-            case EditorInfo.TYPE_TEXT_VARIATION_PASSWORD:
-            case EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD:
-            case EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD:
-                return "password";
+                return AREA_EMAIL;
             default:
-                return "text";
+                return AREA_TEXT;
         }
     }
 
+    /** A masked text field, or the password variation of a numeric field (a PIN). */
+    private static boolean isSecure(EditorInfo info) {
+        int type = info.inputType;
+        int cls = type & EditorInfo.TYPE_MASK_CLASS;
+        int variation = type & EditorInfo.TYPE_MASK_VARIATION;
+        if (cls == EditorInfo.TYPE_CLASS_NUMBER) {
+            return variation == EditorInfo.TYPE_NUMBER_VARIATION_PASSWORD;
+        }
+        if (cls != EditorInfo.TYPE_CLASS_TEXT) {
+            return false;
+        }
+        return variation == EditorInfo.TYPE_TEXT_VARIATION_PASSWORD ||
+            variation == EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+            variation == EditorInfo.TYPE_TEXT_VARIATION_WEB_PASSWORD;
+    }
+
+    /** The rule keys that may cover this field, most specific first. */
+    private static String[] areasOf(EditorInfo info) {
+        String area = areaOf(info);
+        if (!isSecure(info)) {
+            return new String[] {area};
+        }
+        if (AREA_TEXT.equals(area)) {
+            return new String[] {AREA_SECURE, AREA_PASSWORD, area};
+        }
+        return new String[] {AREA_SECURE, area};
+    }
+
+    /**
+     * What a rule that names a field class adds on top of its own tokens. A plain text field is the
+     * only class that keeps suggestions and learning: an email or URL field, a numeric pad, a
+     * secure field and a terminal all have no words to offer, and nothing typed in them is learned.
+     */
+    private static int impliedAreaFlags(String area, boolean secure) {
+        if (AREA_TEXT.equals(area) && !secure) {
+            return 0;
+        }
+        return FLAG_BIT_NO_SUGGESTIONS | FLAG_BIT_INCOGNITO;
+    }
+
     /** The most specific rule value for this package and field, table first, settings second. */
-    private static String ruleValue(Context context, String pkg, String area) {
-        String table = lookupValue(context, pkg, area);
-        String settings = settingsValue(context, pkg, area);
+    private static String ruleValue(Context context, String pkg, String[] areas) {
+        ruleNamesArea = false;
+        String table = lookupTableValue(context, pkg, areas);
+        boolean tableNamesArea = ruleNamesArea;
+        ruleNamesArea = false;
+        String settings = settingsValue(context, pkg, areas);
+        ruleNamesArea = tableNamesArea || ruleNamesArea;
         if (table == null) {
             return settings;
         }
@@ -1043,7 +1150,7 @@ public final class AppProfileRuntime {
         return table + "," + settings;
     }
 
-    private static String lookupValue(Context context, String pkg, String area) {
+    private static String lookupTableValue(Context context, String pkg, String[] areas) {
         SharedPreferences preferences = prefs(context);
         if (preferences == null) {
             return null;
@@ -1052,32 +1159,48 @@ public final class AppProfileRuntime {
         if (rules == null || rules.isEmpty()) {
             return null;
         }
-        Object value = rules.get(pkg + AREA_SEPARATOR + area);
+        for (String area : areas) {
+            Object value = rules.get(pkg + AREA_SEPARATOR + area);
+            if (value instanceof String) {
+                ruleNamesArea = true;
+                return (String) value;
+            }
+        }
+        Object value = rules.get(pkg);
         if (value instanceof String) {
             return (String) value;
         }
-        value = rules.get(pkg);
-        if (value instanceof String) {
-            return (String) value;
+        // A prefix rule can name a field class too: com.example*#email covers every package that
+        // starts with com.example, on its email fields only.
+        for (String area : areas) {
+            String key = bestPrefixKey(rules.keySet(), pkg, PREFIX_SUFFIX + AREA_SEPARATOR + area);
+            if (key != null) {
+                ruleNamesArea = true;
+                return (String) rules.get(key);
+            }
         }
-        String bestPrefix = null;
-        for (String key : rules.keySet()) {
-            if (key == null || key.length() < 2 || !key.endsWith(PREFIX_SUFFIX)) {
+        String key = bestPrefixKey(rules.keySet(), pkg, PREFIX_SUFFIX);
+        return key == null ? null : (String) rules.get(key);
+    }
+
+    /** The longest prefix rule key whose prefix matches the package, or null. */
+    private static String bestPrefixKey(java.util.Set<String> keys, String pkg, String suffix) {
+        String best = null;
+        int bestLength = -1;
+        for (String key : keys) {
+            if (key == null || !key.endsWith(suffix)) {
                 continue;
             }
-            String prefix = key.substring(0, key.length() - 1);
-            if (!pkg.startsWith(prefix)) {
+            String prefix = key.substring(0, key.length() - suffix.length());
+            if (prefix.length() == 0 || !pkg.startsWith(prefix)) {
                 continue;
             }
-            if (bestPrefix == null || prefix.length() > bestPrefix.length()) {
-                bestPrefix = prefix;
+            if (prefix.length() > bestLength) {
+                bestLength = prefix.length();
+                best = key;
             }
         }
-        if (bestPrefix == null) {
-            return null;
-        }
-        value = rules.get(bestPrefix + PREFIX_SUFFIX);
-        return value instanceof String ? (String) value : null;
+        return best;
     }
 
     private static int parseFlags(String value) {
