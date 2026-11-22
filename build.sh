@@ -15,8 +15,8 @@ echo "Target Patch Version: ${VERSION}"
 # 2. Resolve Java
 if [ -n "${JAVA_HOME:-}" ] && [ -x "${JAVA_HOME}/bin/java" ]; then
     JAVA="${JAVA_HOME}/bin/java"
-elif [ -x "/home/ausamnco/.local/jdk-21/bin/java" ]; then
-    JAVA="/home/ausamnco/.local/jdk-21/bin/java"
+elif [ -x "${HOME}/.local/jdk-21/bin/java" ]; then
+    JAVA="${HOME}/.local/jdk-21/bin/java"
 elif command -v java >/dev/null 2>&1; then
     JAVA="$(command -v java)"
 else
@@ -60,8 +60,8 @@ echo "Using Kotlin Compiler: ${KOTLIN_VERSION}"
 mkdir -p "${LIBS_DIR}"
 MORPHE_JAR="${LIBS_DIR}/morphe-cli.jar"
 if [ ! -f "${MORPHE_JAR}" ]; then
-    if [ -f "/home/ausamnco/.local/morphe/morphe-cli.jar" ]; then
-        cp "/home/ausamnco/.local/morphe/morphe-cli.jar" "${MORPHE_JAR}"
+    if [ -n "${MORPHE_CLI_JAR:-}" ] && [ -f "${MORPHE_CLI_JAR}" ]; then
+        cp "${MORPHE_CLI_JAR}" "${MORPHE_JAR}"
     elif [ -f "${HOME}/.local/morphe/morphe-cli.jar" ]; then
         cp "${HOME}/.local/morphe/morphe-cli.jar" "${MORPHE_JAR}"
     else
@@ -177,7 +177,7 @@ Description: Custom enhancement patches for Gboard: typing profiles and swipe ge
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
 Source: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
-Author: ausamnco
+Author: assc0d3r
 Contact: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/issues
 Website: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
 License: GPLv3
