@@ -5,6 +5,9 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 /**
  * Bridge helper for managing Gboard Glide Trail preferences.
@@ -50,17 +53,45 @@ public class GlideTrailPreferences {
     }
 
     /**
+     * Limits for the settings walk: a settings screen is a few levels deep and a few hundred rows,
+     * and preference classes expose the count/child accessors on non-groups too.
+     */
+    private static final int MAX_SUMMARY_DEPTH = 12;
+    private static final int MAX_SUMMARY_NODES = 600;
+    private static final int MAX_SUMMARY_CHILDREN = 256;
+
+    /** Guards against re-entering the walk while it is already running on this thread. */
+    private static final ThreadLocal<Boolean> SUMMARY_WALK_ACTIVE = new ThreadLocal<>();
+
+    /**
      * Called during PreferenceGroup traversal in Ldoe;->aB to set up active summaries.
      */
     public static void initSummaries(Object preferenceGroup) {
         if (preferenceGroup == null) return;
+        if (Boolean.TRUE.equals(SUMMARY_WALK_ACTIVE.get())) return;
+        SUMMARY_WALK_ACTIVE.set(Boolean.TRUE);
         try {
-            traverseAndInit(preferenceGroup);
-        } catch (Throwable ignored) {}
+            traverseAndInit(
+                preferenceGroup,
+                Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>()),
+                0,
+                new int[] {MAX_SUMMARY_NODES}
+            );
+        } catch (Throwable ignored) {
+        } finally {
+            SUMMARY_WALK_ACTIVE.remove();
+        }
     }
 
-    private static void traverseAndInit(Object preference) {
-        if (preference == null) return;
+    private static void traverseAndInit(
+        Object preference,
+        Set<Object> visited,
+        int depth,
+        int[] budget
+    ) {
+        if (preference == null || depth > MAX_SUMMARY_DEPTH || budget[0] <= 0) return;
+        if (!visited.add(preference)) return;
+        budget[0]--;
         try {
             String key = getKey(preference);
             if (key != null) {
@@ -99,9 +130,12 @@ public class GlideTrailPreferences {
 
             if (getCountMethod != null && getPrefMethod != null) {
                 int count = (Integer) getCountMethod.invoke(preference);
+                if (count < 0 || count > MAX_SUMMARY_CHILDREN) {
+                    return;
+                }
                 for (int i = 0; i < count; i++) {
                     Object child = getPrefMethod.invoke(preference, i);
-                    traverseAndInit(child);
+                    traverseAndInit(child, visited, depth + 1, budget);
                 }
             }
         } catch (Throwable ignored) {}

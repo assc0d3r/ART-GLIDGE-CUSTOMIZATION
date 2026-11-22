@@ -330,16 +330,46 @@ public final class AppProfileRuntime {
      */
     public static void refreshSavedRulesSummary(Object preferenceGroup) {
         try {
-            visitPreferences(preferenceGroup);
+            visitPreferences(
+                preferenceGroup,
+                Collections.newSetFromMap(
+                    new java.util.IdentityHashMap<Object, Boolean>()
+                ),
+                0,
+                new int[] {MAX_PREFERENCE_NODES}
+            );
         } catch (Throwable ignored) {
             // A row that cannot be refreshed keeps the explanation from the settings file.
         }
     }
 
-    private static void visitPreferences(Object preference) {
-        if (preference == null) {
+    /**
+     * Limits for the settings walk. Every real Gboard settings tree is a handful of levels deep
+     * and a few hundred rows, so anything past this is a screen whose rows expose each other.
+     */
+    private static final int MAX_PREFERENCE_DEPTH = 12;
+    private static final int MAX_PREFERENCE_NODES = 600;
+    private static final int MAX_PREFERENCE_CHILDREN = 256;
+
+    /**
+     * Walks one preference tree. Each row is visited once, the depth and the row count are capped,
+     * and a row may only report a plausible child count: Gboard's preference classes expose the
+     * count/child accessors on non-groups too, so an unguarded walk can follow one row thousands
+     * of times and hang the screen the caller is trying to draw.
+     */
+    private static void visitPreferences(
+        Object preference,
+        java.util.Set<Object> visited,
+        int depth,
+        int[] budget
+    ) {
+        if (preference == null || depth > MAX_PREFERENCE_DEPTH || budget[0] <= 0) {
             return;
         }
+        if (!visited.add(preference)) {
+            return;
+        }
+        budget[0]--;
         if (SETTING_SAVED_RULES.equals(preferenceKey(preference))) {
             Context context = preferenceContext(preference);
             if (context != null) {
@@ -351,8 +381,11 @@ public final class AppProfileRuntime {
         }
         // A PreferenceGroup also has to be walked: the rules live in a category, not the root.
         int count = preferenceTreeSize(preference);
+        if (count < 0 || count > MAX_PREFERENCE_CHILDREN) {
+            return;
+        }
         for (int index = 0; index < count; index++) {
-            visitPreferences(preferenceTreeChild(preference, index));
+            visitPreferences(preferenceTreeChild(preference, index), visited, depth + 1, budget);
         }
     }
 
@@ -406,7 +439,7 @@ public final class AppProfileRuntime {
             // Fall through to the public accessor.
         }
         try {
-            Object value = preference.getClass().getMethod("getKey").invoke(preference);
+            Object value = method(preference.getClass(), "getKey").invoke(preference);
             return value instanceof String ? (String) value : null;
         } catch (Throwable ignored) {
             return null;
@@ -426,7 +459,7 @@ public final class AppProfileRuntime {
             // Fall through to the public accessor.
         }
         try {
-            Object value = preference.getClass().getMethod("getContext").invoke(preference);
+            Object value = method(preference.getClass(), "getContext").invoke(preference);
             return value instanceof Context ? (Context) value : null;
         } catch (Throwable ignored) {
             return null;
@@ -476,16 +509,23 @@ public final class AppProfileRuntime {
 
     /** A declared field by name, in the class or its superclasses; obfuscated names are short. */
     private static java.lang.reflect.Field namedField(Class<?> type, String name) {
-        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
-            try {
-                java.lang.reflect.Field found = current.getDeclaredField(name);
-                found.setAccessible(true);
-                return found;
-            } catch (NoSuchFieldException ignored) {
-                // Keep walking up.
+        String key = type.getName() + "#field:" + name;
+        Object cached = REFLECTION_CACHE.get(key);
+        if (cached == null) {
+            java.lang.reflect.Field found = null;
+            for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+                try {
+                    found = current.getDeclaredField(name);
+                    found.setAccessible(true);
+                    break;
+                } catch (NoSuchFieldException ignored) {
+                    // Keep walking up.
+                }
             }
+            cached = found == null ? MISSING_MEMBER : found;
+            REFLECTION_CACHE.put(key, cached);
         }
-        return null;
+        return cached == MISSING_MEMBER ? null : (java.lang.reflect.Field) cached;
     }
 
     /** Removes the line for one package from the list text. */
@@ -861,19 +901,46 @@ public final class AppProfileRuntime {
         }
     }
 
+    /**
+     * Resolved members, including misses: the settings walk probes several obfuscated names per
+     * row, and building a NoSuchMethodException for every miss cost more than the screen itself.
+     */
+    private static final Map<String, Object> REFLECTION_CACHE =
+        new java.util.concurrent.ConcurrentHashMap<String, Object>();
+
+    private static final Object MISSING_MEMBER = new Object();
+
+    private static String memberKey(Class<?> type, String name, Class<?>... parameters) {
+        StringBuilder key = new StringBuilder(type.getName()).append('#').append(name).append('(');
+        for (Class<?> parameter : parameters) {
+            key.append(parameter.getName()).append(',');
+        }
+        return key.append(')').toString();
+    }
+
     /** Finds a method in the class or its superclasses; the base class may not be public. */
     private static java.lang.reflect.Method method(Class<?> type, String name,
         Class<?>... parameters) throws NoSuchMethodException {
-        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
-            try {
-                java.lang.reflect.Method found = current.getDeclaredMethod(name, parameters);
-                found.setAccessible(true);
-                return found;
-            } catch (NoSuchMethodException ignored) {
-                // Keep walking up.
+        String key = memberKey(type, name, parameters);
+        Object cached = REFLECTION_CACHE.get(key);
+        if (cached == null) {
+            java.lang.reflect.Method found = null;
+            for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+                try {
+                    found = current.getDeclaredMethod(name, parameters);
+                    found.setAccessible(true);
+                    break;
+                } catch (NoSuchMethodException ignored) {
+                    // Keep walking up.
+                }
             }
+            cached = found == null ? MISSING_MEMBER : found;
+            REFLECTION_CACHE.put(key, cached);
         }
-        throw new NoSuchMethodException(type.getName() + "->" + name);
+        if (cached == MISSING_MEMBER) {
+            throw new NoSuchMethodException(type.getName() + "->" + name);
+        }
+        return (java.lang.reflect.Method) cached;
     }
 
     private static Context applicationContext(Context context) {
