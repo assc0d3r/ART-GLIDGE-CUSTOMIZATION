@@ -176,10 +176,10 @@ Name: Gboard Custom Patches
 Description: Custom enhancement patches for Gboard: typing profiles and swipe gestures, themes and key visuals, voice typing, clipboard, automation and privacy.
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
-Source: https://github.com/ausamnco/gboard-enc-patches
+Source: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
 Author: ausamnco
-Contact: https://github.com/ausamnco/gboard-enc-patches/issues
-Website: https://github.com/ausamnco/gboard-enc-patches
+Contact: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION/issues
+Website: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
 License: GPLv3
 Patcher-Version: 1.8.0
 EOF
