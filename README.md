@@ -1,14 +1,14 @@
 # Gboard Enhancement Patches Suite
 
 <p align="center">
-  <a href="https://morphe.software/add-source?github=ausamnco/gboard-enc-patches"><img alt="Add to Morphe" src="https://img.shields.io/badge/Morphe-Add%20Source-00A8FF?style=for-the-badge"></a>
+  <a href="https://morphe.software/add-source?github=assc0d3r/ART-GLIDGE-CUSTOMIZATION"><img alt="Add to Morphe" src="https://img.shields.io/badge/Morphe-Add%20Source-00A8FF?style=for-the-badge"></a>
   <img alt="Gboard" src="https://img.shields.io/badge/Target-Gboard-4285F4?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/License-GPLv3-green?style=for-the-badge">
 </p>
 
 A standalone, Morphe/ReVanced-compatible bytecode and resource patch suite for **Gboard** (`com.google.android.inputmethod.latin`).
 
-The bundle ships 88 independent patches: every one can be selected on its own or combined in the **Morphe** app alongside other third-party patch sources. They are grouped by what they change:
+The bundle ships a large set of independent patches, each selectable on its own or combined in the **Morphe** app alongside other third-party patch sources. They are grouped by what they change:
 
 - **Typing, gestures and input**: per-app profiles (incognito, no suggestions, toolbar order and theme or keyboard height per app), swipe left anywhere to delete, swipe a suggested word to change its case, spacebar double-tap undo/redo, English QWERTY up/down flick case, field adaptation for search, URL, email, password and code fields, multilingual suggestions, swipe down to dismiss, cursor trackpad, keypress vibration intensity, long-press editing shortcuts, backspace repeat haptics and the Tasker Intent event.
 - **Themes, keys and visual effects**: Gboard Theme Builder, glide trail customization (speed, thickness, tail length, Rainbow RGB, HSV colour wheel), Custom Theme ZIP import and theme packs, icon packs, Frosted Glass, Glass Panel and Glass Press Effect, translucent bottom bar, rounded keyboard panel, key shape selection, immersive keyboard, theme that follows dark mode, AMOLED settings and dark keyboard, G logo on the spacebar, emoji key position and emoji size.
@@ -19,7 +19,7 @@ The bundle ships 88 independent patches: every one can be selected on its own or
 - **Settings and branding**: a Keyboard Settings screen inside Gboard, settings homepage override, Developer options and Flag Editor, Backup & Restore, Change package name and Custom branding.
 - **Privacy and clean-up**: Block Trackers, Block App Hijacking, Stop Remote Updates, Stop Background Sync, Disable Cloud Backup, Remove Permissions, Offline Only, Remove Extra Files, Disable Play Services, Remove Translate Limit, Key Mapper Watchdog and the Gboard signature bypass.
 
-The full inventory, including descriptions, default on/off state and supported versions, is `patches-list.json` and the patch list inside Morphe. The three sections further down still document the original patches (Backspace Repeat Haptic Feedback, Enter Key Tasker Event and Glide Trail Customization) in depth.
+The exact number of patches, their descriptions, default on/off state and supported versions live in `patches-list.json` and in the patch list inside Morphe, so those stay authoritative as patches are added. Three of them (Backspace Repeat Haptic Feedback, Enter Key Tasker Event and Glide Trail Customization) also have a full write-up under [Detailed patch guides](#-detailed-patch-guides); the rest are described by their entry in the patch list and configure themselves from Gboard's settings once applied.
 
 ---
 
@@ -30,20 +30,24 @@ The full inventory, including descriptions, default on/off state and supported v
    - Go to **Settings** ⚙️ -> **Sources**.
    - Tap **Add Source** and enter:
      ```
-     https://github.com/ausamnco/gboard-enc-patches
+     https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
      ```
    - Alternatively, tap the **Add to Morphe** button above from your Android browser.
 
 2. **Patch Gboard**:
    - In Morphe, navigate to the **Patcher** tab.
    - Select **Gboard** (`18.6.3.1002251336-release-arm64-v8a` applies every patch; `18.5.4.993608717-release-arm64-v8a` and `18.0.3.954559732-release-arm64-v8a` cover subsets).
-   - In the patch selection list you will find all 88 patches, grouped by category (typing and gestures, themes and visual effects, voice typing, text tools, clipboard and toolbar, layouts, settings and branding, privacy and clean-up).
+   - In the patch selection list you will find every patch in the bundle, grouped by category (typing and gestures, themes and visual effects, voice typing, text tools, clipboard and toolbar, layouts, settings and branding, privacy and clean-up).
    - Select the patches you desire and tap **Patch**!
    - Install the generated APK.
 
 ---
 
-## ⚡ Patch 1: Backspace Repeat Haptic Feedback
+## 📖 Detailed patch guides
+
+A full write-up exists for three of the patches, either because the setup lives outside Gboard (the Tasker recipe) or because the patch has many controls worth documenting (haptics behaviour, glide-trail tuning). They are current, not historical: every one still ships and is selectable in Morphe. The remaining patches are documented by their description and options in `patches-list.json` and in the patch list itself.
+
+### ⚡ Patch 1: Backspace Repeat Haptic Feedback
 
 - **How it works:** Hooks into Gboard's repeat key dispatch pipeline. While backspace is held down, every deletion step fires a tactile pulse via Gboard's native haptic player.
 - **Smart suppression:** If the cursor is at the beginning of a line/field and no text is deleted, vibration is automatically suppressed.
@@ -51,12 +55,12 @@ The full inventory, including descriptions, default on/off state and supported v
 
 ---
 
-## ⚡ Patch 2: Enter Key Tasker Event
+### ⚡ Patch 2: Enter Key Tasker Event
 
 - **How it works:** Hooks into Gboard's central input dispatch pipeline (`GoogleInputMethodService.dD`). Whenever the bottom-right key is pressed—whether for a standard newline (keycode 66/160) or an IME action (Send, Search, Go, Done, Next)—an Intent broadcast is immediately dispatched with zero latency.
 - **Gboard Settings:** Adds a toggle under *Settings -> Preferences -> Key tap* (*"Send Enter key to Tasker"*).
 
-### Tasker Setup Guide
+#### Tasker Setup Guide
 
 1. Open **Tasker** -> go to the **Profiles** tab.
 2. Tap **+** -> select **Event** -> **System** -> **Intent Received**.
@@ -75,7 +79,7 @@ The full inventory, including descriptions, default on/off state and supported v
 | `%text_before` | Text before the cursor (up to 100 chars) | `"Order #12345"` |
 | `%timestamp` | Epoch time in milliseconds | `1726831000000` |
 
-#### Example Tasker Actions:
+##### Example Tasker Actions:
 - Flash a notification: `Enter pressed in %package: %action_type`
 - Conditional action: Only run when pressed in WhatsApp:
   ```
@@ -84,7 +88,7 @@ The full inventory, including descriptions, default on/off state and supported v
 
 ---
 
-## ⚡ Patch 3: Glide Trail Customization
+### ⚡ Patch 3: Glide Trail Customization
 
 Customizes Gboard's glide typing gesture trail with full visual control inspired by Samsung Keyboard's Keys Cafe:
 
@@ -103,8 +107,8 @@ Customizes Gboard's glide typing gesture trail with full visual control inspired
 
 ```bash
 # Clone the repository
-git clone https://github.com/ausamnco/gboard-enc-patches.git
-cd gboard-enc-patches
+git clone https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION.git
+cd ART-GLIDGE-CUSTOMIZATION
 
 # Compile patches and generate release bundle (.mpp)
 ./build.sh
