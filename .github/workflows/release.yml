@@ -68,6 +68,30 @@ jobs:
       - name: Build Patch Package (.mpp)
         run: ./build.sh
 
+      # The release notes count and the published inventory both read patches-list.json, so a
+      # stale checked-in copy silently under-counts the bundle. Regenerate it from the artefact
+      # that is about to ship and fail instead of publishing a file that describes other patches.
+      - name: Verify the patch inventory matches the bundle
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.tag_info.outputs.VERSION }}"
+          REGENERATED="build/patches-list.regenerated.json"
+          mkdir -p build
+          java -cp "libs/morphe-cli.jar:libs/gson.jar" tools/bindings/Inventory.java \
+            "dist/patches-${VERSION}.mpp" "${VERSION}" "${REGENERATED}"
+          # The version is stamped from the tag and the entry order follows the previous file, so
+          # compare the patch entries themselves, name by name.
+          jq -S '.patches | sort_by(.name)' patches-list.json > build/inventory.committed.json
+          jq -S '.patches | sort_by(.name)' "${REGENERATED}" > build/inventory.built.json
+          if ! diff -u build/inventory.committed.json build/inventory.built.json; then
+            echo "::error::patches-list.json does not describe dist/patches-${VERSION}.mpp."
+            echo "::error::Regenerate and commit it before tagging:"
+            echo "::error::java -cp \"libs/morphe-cli.jar:libs/gson.jar\" tools/bindings/Inventory.java dist/patches-${VERSION}.mpp ${VERSION} patches-list.json"
+            exit 1
+          fi
+          mv "${REGENERATED}" patches-list.json
+          echo "Inventory matches the bundle: $(jq '.patches | length' patches-list.json) patches"
+
       # Anything shipped alongside the bundle must describe this release, not a
       # stale checked-in value.
       - name: Sync release metadata
@@ -78,8 +102,8 @@ jobs:
           jq --arg v "${VERSION}" --arg u "${URL}" \
             '.version = $v | .download_url = $u' patches-bundle.json > patches-bundle.json.tmp
           mv patches-bundle.json.tmp patches-bundle.json
-          jq --arg v "${VERSION}" '.version = $v' patches-list.json > patches-list.json.tmp
-          mv patches-list.json.tmp patches-list.json
+          # patches-list.json is regenerated from this bundle in the step above, which stamps
+          # its version already; only the bundle metadata still needs writing here.
           echo "== patches-bundle.json =="
           cat patches-bundle.json
 
