@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the leading v. Must match gradle.properties on this commit.'
+        required: true
+        type: string
 
 concurrency:
   group: release-${{ github.ref }}
@@ -40,30 +45,82 @@ jobs:
       - name: Make scripts executable
         run: chmod +x ./build.sh
 
-      # The tag is the single source of truth. build.sh names the bundle from
-      # gradle.properties, so the version is written there before building;
-      # otherwise the tag and the artifact name drift apart and the upload step
-      # silently publishes a release with no files.
-      - name: Resolve version from tag
+      # The version comes from the ref, never from the working tree, and the tree must already
+      # agree with it: build.sh names the bundle from gradle.properties, so a checkout whose
+      # version differs from the tag ships the artifact under the wrong name. That used to be
+      # papered over with sed, which released a version the commit did not contain; it fails now.
+      #
+      # A dispatch republishes the release for the version it is given, so the version is a
+      # required input rather than something read from gradle.properties: a dispatch without it
+      # would take whatever version the branch happens to carry and rewrite that release's notes
+      # and assets by accident.
+      - name: Resolve version from the ref
         id: tag_info
+        env:
+          # Passed through the environment; an input is never spliced into the script.
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF_NAME:-}"
-          if [[ -z "${TAG}" ]]; then
-            VERSION="$(grep -m1 '^version=' gradle.properties | cut -d'=' -f2 | tr -d ' ')"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            VERSION="${INPUT_VERSION}"
+            if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Input version '${VERSION}' must be <major>.<minor>.<patch>, without the leading v."
+              exit 1
+            fi
             TAG="v${VERSION}"
-            echo "::warning::No tag ref; building ${TAG} from gradle.properties."
-          elif [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            VERSION="${TAG#v}"
           else
-            echo "::error::Tag '${TAG}' must match v<major>.<minor>.<patch>."
+            TAG="${GITHUB_REF_NAME}"
+            if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Tag '${TAG}' must match v<major>.<minor>.<patch>."
+              exit 1
+            fi
+            VERSION="${TAG#v}"
+          fi
+
+          PROP_VERSION="$(grep -m1 '^version=' gradle.properties | cut -d'=' -f2 | tr -d ' ')"
+          if [[ "${PROP_VERSION}" != "${VERSION}" ]]; then
+            echo "::error::gradle.properties says ${PROP_VERSION}, but this run releases ${VERSION}."
+            echo "::error::Bump version= in gradle.properties to ${VERSION}, commit it and re-run."
             exit 1
           fi
-          sed -i "s|^version=.*|version=${VERSION}|" gradle.properties
+
           echo "== gradle.properties =="
           grep -m1 '^version=' gradle.properties
           echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "TAG=${TAG}" >> "$GITHUB_OUTPUT"
+
+      # A dispatch names an explicit version, so it can no longer pick up whatever version the
+      # branch carries — but it can still name the version that is already out, and
+      # softprops/action-gh-release would then replace that release's notes and assets. Ask the
+      # API whether the resolved tag is already released and stop before spending a build on it.
+      # Tag pushes are deliberately not gated: re-running the workflow for a tag whose release is
+      # half-published is a repair, not an overwrite.
+      - name: Refuse to republish an existing release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag_info.outputs.TAG }}
+        run: |
+          set -euo pipefail
+          # Fail closed: only an explicit 404 means "not released yet". Any other answer — a bad
+          # token, a rate limit, a 5xx — stops the run rather than risking an overwrite.
+          STATUS="$(curl -sS -o "${RUNNER_TEMP}/release.json" -w '%{http_code}'             -H "Authorization: Bearer ${GH_TOKEN}"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
+          case "${STATUS}" in
+            404)
+              echo "${TAG} is not released yet; continuing."
+              ;;
+            200)
+              echo "::error::${TAG} is already released, so this dispatch would overwrite it."
+              echo "::error::Re-run the workflow from the tag to repair that release, or dispatch a new version."
+              jq -r '"::error::released " + (.published_at // "unknown") + " with " + ((.assets | length) | tostring) + " assets"' "${RUNNER_TEMP}/release.json" || true
+              exit 1
+              ;;
+            *)
+              echo "::error::Cannot confirm whether ${TAG} is released yet (HTTP ${STATUS})."
+              echo "::error::Check the API response and re-run the dispatch."
+              exit 1
+              ;;
+          esac
 
       - name: Build Patch Package (.mpp)
         run: ./build.sh
