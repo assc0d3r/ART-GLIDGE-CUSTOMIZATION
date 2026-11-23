@@ -12,12 +12,11 @@ import android.view.inputmethod.InputConnection;
 import java.lang.reflect.Field;
 
 /**
- * Double tap on the left half of the spacebar replays the last undone edit (redo), the right half
- * undoes the last edit.
+ * Double tap on the left half of the spacebar inserts a tab, the right half undoes the last edit.
  *
- * The keyboard dispatches a tap through {@code SoftKeyboardView.dispatchTouchEvent}, so the tap is
- * swallowed there and the keyboard never commits the space. Everything is reflection based and
- * wrapped in catch blocks: any surprise shape leaves the stock keyboard untouched.
+ * The keyboard dispatches a tap through {@code SoftKeyboardView.dispatchTouchEvent}, so the second
+ * tap is swallowed there and the keyboard never commits a second space. Everything is reflection
+ * based and wrapped in catch blocks: any surprise shape leaves the stock keyboard untouched.
  */
 public final class SpacebarDoubleTapRuntime {
 
@@ -26,7 +25,6 @@ public final class SpacebarDoubleTapRuntime {
     private static final long MIN_TAP_GAP_MS = 30L;
 
     private static long lastSpaceTapTime;
-    private static float lastSpaceTapX;
     private static boolean lastSpaceTapLeft;
     private static boolean swallowing;
 
@@ -65,15 +63,14 @@ public final class SpacebarDoubleTapRuntime {
                 && left == lastSpaceTapLeft;
 
             lastSpaceTapTime = now;
-            lastSpaceTapX = event.getX();
             lastSpaceTapLeft = left;
 
             if (!isDoubleTap) {
                 return false;
             }
 
-            // Only swallow the tap when the edit really happened, so a terminal that ignores
-            // Ctrl+Z still gets its space.
+            // Only swallow the tap when the edit really happened, so a terminal that ignores Ctrl+Z
+            // still gets its space.
             if (!applyEdit(keyboardView, left)) {
                 return false;
             }
@@ -86,27 +83,45 @@ public final class SpacebarDoubleTapRuntime {
         }
     }
 
-    /** Left half redo, right half undo. */
+    /** Left half inserts a tab, right half undoes the last edit. */
     private static boolean applyEdit(View keyboardView, boolean left) {
         InputConnection connection = inputConnectionOf(keyboardView.getContext());
         if (connection == null) {
             return false;
         }
         try {
-            sendControlKey(connection, left);
+            if (left) {
+                insertTab(connection);
+            } else {
+                sendUndo(connection);
+            }
             return true;
         } catch (Throwable ignored) {
             return false;
         }
     }
 
-    /** Ctrl+Shift+Z replays an undone edit on Android's editors; Ctrl+Z undoes it. */
-    private static void sendControlKey(InputConnection connection, boolean redo) {
+    /**
+     * The first tap of the pair already reached the keyboard and committed its space, so that one
+     * space is removed before the tab lands: a double space becomes one tab rather than a space
+     * followed by a tab. A selection is left alone, because the tab is about to replace it.
+     */
+    private static void insertTab(InputConnection connection) {
+        CharSequence selected = connection.getSelectedText(0);
+        boolean hasSelection = selected != null && selected.length() > 0;
+        if (!hasSelection) {
+            CharSequence before = connection.getTextBeforeCursor(1, 0);
+            if (before != null && before.length() == 1 && before.charAt(0) == ' ') {
+                connection.deleteSurroundingText(1, 0);
+            }
+        }
+        connection.commitText("\t", 1);
+    }
+
+    /** Ctrl+Z undoes the last edit in Android's editors. */
+    private static void sendUndo(InputConnection connection) {
         long now = android.os.SystemClock.uptimeMillis();
         int meta = KeyEvent.META_CTRL_ON | KeyEvent.META_CTRL_LEFT_ON;
-        if (redo) {
-            meta |= KeyEvent.META_SHIFT_ON | KeyEvent.META_SHIFT_LEFT_ON;
-        }
         connection.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_Z, 0, meta));
         connection.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_Z, 0, meta));
     }
