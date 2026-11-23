@@ -114,7 +114,13 @@ jobs:
           - **Swipe Left to Delete**: sliding left anywhere on the keyboard acts as backspace;
             keep holding to delete whole words.
           - **Smart bar case swipe**: swipe a suggested word up to capitalize it, down to lowercase it.
-          - **Spacebar double-tap undo/redo**, **English QWERTY Flick Case** (up for uppercase, down
+          - **Spacebar double-tap tab/undo**: double tap the left half of the spacebar to insert a
+            tab, or the right half to undo the last edit; the tapped space is swallowed instead of
+            committing a second one, so a double space becomes one tab.
+          - **Punctuation spacing**: a space typed before a period, comma or ellipsis is pulled back
+            to sit tight against the word (`Hey ` + `.` commits as `Hey.`), while French `;:!?`
+            keep exactly one space before them.
+          - **English QWERTY Flick Case** (up for uppercase, down
             for lowercase), **Field adaptation** for search, URL, email, password and code fields,
             **Multilingual Suggestion**, **Swipe Down to Dismiss Keyboard**, **Swipeable Custom Top
             Row**, **Cursor trackpad mode**, **Keypress Vibration Intensity Control**,
@@ -169,7 +175,8 @@ jobs:
           #### 🎯 Supported Gboard versions
           - `18.6.3.1002251336-release-arm64-v8a`: all PATCH_COUNT patches.
           - `18.5.4.993608717-release-arm64-v8a`: the newer additions, including the per-app
-            profiles, swipe and case-swipe patches, glass effects and Field adaptation (11 patches).
+            profiles, swipe, case-swipe and punctuation patches, glass effects and Field adaptation
+            (12 patches).
           - `18.0.3.954559732-release-arm64-v8a` and `18.0.3`: the three original patches (Glide
             Trail Customization, Backspace Repeat Haptic Feedback, Enter Key Tasker Event).
 
