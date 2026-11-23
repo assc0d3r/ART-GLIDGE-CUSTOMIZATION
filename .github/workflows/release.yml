@@ -92,7 +92,8 @@ jobs:
       # A dispatch names an explicit version, so it can no longer pick up whatever version the
       # branch carries — but it can still name the version that is already out, and
       # softprops/action-gh-release would then replace that release's notes and assets. Ask the
-      # API whether the resolved tag is already released and stop before spending a build on it.
+      # release list whether the resolved tag already has one — a draft included — and stop
+      # before spending a build on it.
       # Tag pushes are deliberately not gated: re-running the workflow for a tag whose release is
       # half-published is a repair, not an overwrite.
       - name: Refuse to republish an existing release
@@ -102,25 +103,28 @@ jobs:
           TAG: ${{ steps.tag_info.outputs.TAG }}
         run: |
           set -euo pipefail
-          # Fail closed: only an explicit 404 means "not released yet". Any other answer — a bad
-          # token, a rate limit, a 5xx — stops the run rather than risking an overwrite.
-          STATUS="$(curl -sS -o "${RUNNER_TEMP}/release.json" -w '%{http_code}'             -H "Authorization: Bearer ${GH_TOKEN}"             -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
-          case "${STATUS}" in
-            404)
-              echo "${TAG} is not released yet; continuing."
-              ;;
-            200)
-              echo "::error::${TAG} is already released, so this dispatch would overwrite it."
-              echo "::error::Re-run the workflow from the tag to repair that release, or dispatch a new version."
-              jq -r '"::error::released " + (.published_at // "unknown") + " with " + ((.assets | length) | tostring) + " assets"' "${RUNNER_TEMP}/release.json" || true
-              exit 1
-              ;;
-            *)
-              echo "::error::Cannot confirm whether ${TAG} is released yet (HTTP ${STATUS})."
-              echo "::error::Check the API response and re-run the dispatch."
-              exit 1
-              ;;
-          esac
+          # Fail closed: the release list is the only endpoint that reports drafts, so anything
+          # but a 200 stops the run rather than risking an overwrite.
+          STATUS="$(curl -sS -o "${RUNNER_TEMP}/releases.json" -w '%{http_code}' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
+          if [[ "${STATUS}" != "200" ]]; then
+            echo "::error::Cannot check whether ${TAG} already has a release (HTTP ${STATUS})."
+            echo "::error::Check the API response and re-run the dispatch."
+            exit 1
+          fi
+
+          # A draft is returned by the release list but never by /releases/tags/{tag}, which is
+          # exactly how a dispatch used to be able to overwrite a draft waiting to be published.
+          RELEASES="${RUNNER_TEMP}/releases.json"
+          if [[ "$(jq -r --arg tag "${TAG}" '[.[] | select(.tag_name == $tag)] | length' "${RELEASES}")" != "0" ]]; then
+            echo "::error::${TAG} already has a release, so this dispatch would overwrite it."
+            echo "::error::Publish or delete that release first, or dispatch a new version."
+            jq -r --arg tag "${TAG}" '.[] | select(.tag_name == $tag) | "::error::" + (if .draft then "draft" else "published" end) + " since " + (.created_at // "unknown") + " with " + ((.assets | length) | tostring) + " assets"' "${RELEASES}" || true
+            exit 1
+          fi
+          echo "${TAG} has no release yet; continuing."
 
       - name: Build Patch Package (.mpp)
         run: ./build.sh
