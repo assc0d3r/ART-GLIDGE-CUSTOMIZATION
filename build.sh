@@ -131,6 +131,18 @@ for kt_group in "${KT_GROUPS[@]}"; do
         "${KT_SOURCES[@]}"
 done
 
+# 5a. Verify the Smart bar case swipe hook before anything is packaged: the invoke it injects
+# must pass the commit funnel's CharSequence parameter, never the flags int. Shipping the wrong
+# register builds and patches fine, then crashes the keyboard on every input field (VerifyError).
+echo "Checking Smart bar case swipe hook register..."
+bash "${SCRIPT_DIR}/tools/check-case-swipe-hook.sh" \
+    "${SCRIPT_DIR}" \
+    "${JAVA}" \
+    "${JAVA//java/javac}" \
+    "${BUILD_DIR}" \
+    "${LIBS_DIR}/kotlin-stdlib-${KOTLIN_VERSION}.jar" \
+    "${BUILD_DIR}/case-swipe-check"
+
 # 5b. Compile Java extension sources (injected into target APK)
 ANDROID_JAR="${LIBS_DIR}/android.jar"
 if [ ! -f "${ANDROID_JAR}" ]; then

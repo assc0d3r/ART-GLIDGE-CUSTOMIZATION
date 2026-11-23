@@ -77,19 +77,17 @@ val smartBarCaseSwipePatch = bytecodePatch(
                     method.parameterTypes == listOf(INPUT_CONNECTION, CHAR_SEQUENCE, "I")
             } ?: error("Gboard commit funnel $COMMIT_UTIL_CLASS->f not found.")
 
-        // The commit funnel is a static method, so its CharSequence argument is `p1`, not `p2`
-        // (`p2` is the flags int). Reading the flags instead of hardcoding keeps the hook correct if
-        // Gboard ever ships the funnel as an instance method, where the text would move to `p2`.
-        val textRegister =
-            if (commit.accessFlags and AccessFlags.STATIC.value != 0) "p1" else "p2"
-
+        // The register is derived from the funnel's own signature, so the hook stays correct if
+        // Gboard ever ships it as an instance method (where `this` shifts the text argument).
+        // tools/check-case-swipe-hook.sh fails the build if this stops passing the CharSequence
+        // parameter, because passing the flags int only fails on the device, as a VerifyError.
         if (!commit.callsCaseSwipeRuntime("applyCommittedCase")) {
             commit.addInstructions(
                 0,
-                """
-                    invoke-static {$textRegister}, $HELPER_CLASS->applyCommittedCase($CHAR_SEQUENCE)$CHAR_SEQUENCE
-                    move-result-object $textRegister
-                """.trimIndent(),
+                CaseSwipeHook.instructions(
+                    isStatic = commit.accessFlags and AccessFlags.STATIC.value != 0,
+                    parameterTypes = commit.parameterTypes,
+                ).joinToString("\n"),
             )
         }
 
