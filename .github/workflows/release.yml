@@ -187,11 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           cat << 'EOF' > release-notes.md
-          ### Gboard Enhancement Patches Suite
+          ### ✧ Glyphchemy
 
-          A Morphe/ReVanced bytecode and resource patch suite for Gboard
-          (`com.google.android.inputmethod.latin`). PATCH_COUNT patches are bundled and every one of
-          them can be selected on its own or combined in Morphe Manager.
+          Alchemy for Every Key. Glyphchemy is a Morphe/ReVanced bytecode and resource patch suite
+          for Gboard (`com.google.android.inputmethod.latin`). PATCH_COUNT patches are bundled and
+          every one of them can be selected on its own or combined in Morphe Manager.
 
           #### ✨ Typing, gestures and input
           - **Per-app profiles**: incognito, no suggestions, toolbar order and theme or keyboard

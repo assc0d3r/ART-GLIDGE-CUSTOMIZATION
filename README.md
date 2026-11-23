@@ -1,9 +1,11 @@
-<h1 align="center">Gboard Enhancement Patches</h1>
+<h1 align="center">✧ GLYPHCHEMY</h1>
 
 <p align="center">
-A Morphe/ReVanced patch suite for <b>Gboard</b> (<code>com.google.android.inputmethod.latin</code>): typing and gesture
-improvements, themes and visual effects, voice typing, clipboard and toolbar tools, layouts, privacy switches and
-settings screens — every patch selectable on its own or combined with other sources.
+<b>Alchemy for Every Key.</b><br>
+The art of keyboard transformation: a bespoke Morphe patch collection for <b>Gboard</b>
+(<code>com.google.android.inputmethod.latin</code>). Typing and gesture improvements, themes and visual effects, voice
+typing, clipboard and toolbar tools, layouts, privacy switches and settings screens — every patch selectable on its own
+or combined with other sources.
 </p>
 
 <p align="center">
@@ -15,11 +17,11 @@ settings screens — every patch selectable on its own or combined with other so
 
 ## Overview
 
-Gboard Enhancement Patches is a standalone Morphe source built for Gboard **18.6.3**. It bundles **89 patches**. Most
-of them are project-built features — code the patch injects at runtime — while others unlock behaviour Gboard already
-ships behind a rollout gate or a hidden setting. Each entry below is one selectable patch; the same list, with
-descriptions, options, default state and compatible versions, is generated into `patches-list.json` and is shown inside
-Morphe.
+Glyphchemy is an experimental Gboard customization and enhancement suite powered by bespoke Morphe patches, built for
+Gboard **18.6.3**. It bundles **89 patches**. Most of them are project-built features — code the patch injects at
+runtime — while others unlock behaviour Gboard already ships behind a rollout gate or a hidden setting. Each entry below
+is one selectable patch; the same list, with descriptions, options, default state and compatible versions, is generated
+into `patches-list.json` and is shown inside Morphe.
 
 Patches marked *(disabled by default)* do something invasive enough that you should read the entry before turning them
 on — a different package name, a blacked-out keyboard, an offline-only build, or shell access.

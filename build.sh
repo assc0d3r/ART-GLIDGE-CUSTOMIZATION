@@ -6,7 +6,7 @@ DIST_DIR="${SCRIPT_DIR}/dist"
 BUILD_DIR="${SCRIPT_DIR}/build/classes"
 LIBS_DIR="${SCRIPT_DIR}/libs"
 
-echo "=== Building Gboard Enhancement Patches Suite ==="
+echo "=== Building Glyphchemy Patches Suite ==="
 
 # 1. Resolve Version from gradle.properties
 VERSION="$(grep -m1 '^version=' "${SCRIPT_DIR}/gradle.properties" | cut -d'=' -f2 | tr -d ' ')"
@@ -184,8 +184,8 @@ MANIFEST_FILE="${BUILD_DIR}/MANIFEST.MF"
 TIMESTAMP="$(date +%s000)"
 cat << EOF > "${MANIFEST_FILE}"
 Manifest-Version: 1.0
-Name: Gboard Custom Patches
-Description: Custom enhancement patches for Gboard: typing profiles and swipe gestures, themes and key visuals, voice typing, clipboard, automation and privacy.
+Name: Glyphchemy
+Description: Glyphchemy, a bespoke Morphe patch collection for Gboard: typing and gesture improvements, themes and visual effects, voice typing, clipboard and toolbar tools, layouts, privacy switches and settings screens.
 Version: ${VERSION}
 Timestamp: ${TIMESTAMP}
 Source: https://github.com/assc0d3r/ART-GLIDGE-CUSTOMIZATION
