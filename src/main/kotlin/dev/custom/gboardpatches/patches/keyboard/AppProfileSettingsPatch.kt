@@ -158,9 +158,11 @@ internal fun applyAppProfileSettings(document: Document) {
                     "com.example matches one app, com.example* matches every app starting " +
                     "with it, and #text, #email, #url, #number, #phone, #date, #time, " +
                     "#datetime, #secure (a password or PIN field) or #terminal (a field with no " +
-                    "type, such as a terminal prompt) can follow the package to limit the rule " +
+                    "type, such as a terminal prompt; #other still matches it too) can follow the " +
+                    "package to limit the rule " +
                     "to that kind of field. A rule that names a field class also keeps " +
-                    "suggestions and learning off there, since only a plain text field keeps them.",
+                    "suggestions off there, and keeps a #secure or #terminal field out of " +
+                    "learning too; email, URL and the numeric pad areas keep learning.",
             )
             setAndroidAttribute("key", PREF_KEY_APP_PROFILE_PACKAGE)
             setAndroidAttribute("defaultValue", "")

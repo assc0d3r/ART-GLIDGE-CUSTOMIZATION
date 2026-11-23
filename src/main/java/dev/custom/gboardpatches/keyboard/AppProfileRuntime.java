@@ -72,7 +72,11 @@ public final class AppProfileRuntime {
     /** The area masked text fields used before the secure flag existed, kept as an alias. */
     private static final String AREA_PASSWORD = "password";
 
-    /** A field class this runtime does not name: treated like a structured field. */
+    /**
+     * The area a field with no type at all used to fall into, kept as a legacy alias for
+     * {@link #AREA_TERMINAL} so rules written as {@code #other} keep matching. A field class this
+     * runtime does not name falls here too.
+     */
     private static final String AREA_OTHER = "other";
 
     private static final String FLAG_INCOGNITO = "incognito";
@@ -1113,6 +1117,10 @@ public final class AppProfileRuntime {
     private static String[] areasOf(EditorInfo info) {
         String area = areaOf(info);
         if (!isSecure(info)) {
+            if (AREA_TERMINAL.equals(area)) {
+                // A field with no type was #other before the taxonomy named it a terminal.
+                return new String[] {AREA_TERMINAL, AREA_OTHER};
+            }
             return new String[] {area};
         }
         if (AREA_TEXT.equals(area)) {
@@ -1123,14 +1131,20 @@ public final class AppProfileRuntime {
 
     /**
      * What a rule that names a field class adds on top of its own tokens. A plain text field is the
-     * only class that keeps suggestions and learning: an email or URL field, a numeric pad, a
-     * secure field and a terminal all have no words to offer, and nothing typed in them is learned.
+     * only class with words to offer, so every other class loses the suggestion strip. Learning and
+     * clipboard history are only kept away from the two classes that have nothing to learn from: a
+     * secure field (a password or PIN) and a terminal, whose draft never becomes visible text.
+     * A structured field such as an email box or a numeric pad keeps them: a theme rule there is
+     * about how the keyboard looks, not about what may be remembered.
      */
     private static int impliedAreaFlags(String area, boolean secure) {
         if (AREA_TEXT.equals(area) && !secure) {
             return 0;
         }
-        return FLAG_BIT_NO_SUGGESTIONS | FLAG_BIT_INCOGNITO;
+        if (secure || AREA_TERMINAL.equals(area)) {
+            return FLAG_BIT_NO_SUGGESTIONS | FLAG_BIT_INCOGNITO;
+        }
+        return FLAG_BIT_NO_SUGGESTIONS;
     }
 
     /** The most specific rule value for this package and field, table first, settings second. */
