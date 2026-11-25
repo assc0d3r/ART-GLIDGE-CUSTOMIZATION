@@ -31,7 +31,7 @@ on — a different package name, a blacked-out keyboard, an offline-only build, 
 | Gboard version | Coverage |
 | :--- | :--- |
 | `18.6.3.1002251336-release-arm64-v8a` | Every patch in the bundle |
-| `18.8.0.1022711984-beta-arm64-v8a` | Smart bar case swipe and Punctuation spacing; experimental: the abotmaker Rambler Waveform Animation and Productivity Tools ports |
+| `18.8.0.1022711984-beta-arm64-v8a` | Frosted Glass, Smart bar case swipe and Punctuation spacing; experimental: the abotmaker Rambler Waveform Animation and Productivity Tools ports |
 | `18.5.4.993608717-release-arm64-v8a` | The newer typing, gesture, theme and field patches |
 | `18.0.3.954559732-release-arm64-v8a`, `18.0.3` | The three original patches: Glide Trail Customization, Backspace Repeat Haptic Feedback and Enter Key Tasker Event |
 
