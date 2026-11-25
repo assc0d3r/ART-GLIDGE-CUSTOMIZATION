@@ -5,7 +5,7 @@
 // Audited APK: com.google.android.inputmethod.latin_18.8.0.1022711984-beta-arm64-v8a
 // sha256:      d1406caa270011aaea2a58bf828a3ffd94a58927a53688dc7bcd26e537c4d34b
 //
-// Ten of these are consumed by GboardFrostedGlassTargets.kt; the two flag-store entries are recorded
+// Ten of these are consumed by GboardFrostedGlassTargets.kt; the three flag-store entries are recorded
 // here because no 18.8 bindings projection exists yet.
 
 package audits
@@ -87,5 +87,11 @@ class FrostedAndFlagStore1880 {
         classType = "Ladfs;",
         name = "a",
         type = "Ljava/lang/String;",
+    )
+
+    val `flagHolderField` = GboardFieldTarget(
+        classType = "Ladfs;",
+        name = "f",
+        type = "Ladgf;",
     )
 }
