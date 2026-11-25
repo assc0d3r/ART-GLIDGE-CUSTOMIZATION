@@ -58,8 +58,6 @@ internal const val WAVEFORM_RUNTIME_TYPE =
     "Ldev/abotmaker/ramblerenhancements/RamblerWaveformRuntime;"
 internal const val PREF_LAUNCHER_TYPE =
     "Ldev/abotmaker/ramblerenhancements/RamblerPreferenceLauncher;"
-internal const val CUSTOM_INSTR_RULES_TYPE =
-    "Ldev/abotmaker/ramblerenhancements/RamblerCustomInstructionRules;"
 internal const val TEXT_PIPELINE_TYPE =
     "Ldev/abotmaker/ramblerenhancements/RamblerTextPipeline;"
 internal const val DICTATION_STATS_TYPE =
@@ -71,11 +69,6 @@ internal const val SPACEBAR_TRIGGER_TYPE =
 
 internal enum class RamblerFeature {
     WAVEFORM,
-    CUSTOM_INSTRUCTIONS,
-    PERSONAL_DICTIONARY,
-    CONTACT_NAMES,
-    CURSOR_EDITING,
-    APP_CONTEXT,
     PRODUCTIVITY_TOOLS,
 }
 
@@ -85,10 +78,8 @@ internal class RamblerPatchRunState {
     var agenticTargets: AgenticExtensionTargets? = null
     var appendSpacingTargets: AppendSpacingTargets? = null
     var waveformTargets: WaveformTargets? = null
-    var museStatsTargets: MuseStatsTargets? = null
     var prefsTargets: PrefsTargets? = null
     var prefLaunchTargets: PreferenceLaunchTargets? = null
-    var sessionBundleTargets: SessionBundleTargets? = null
     var activateHookTargets: ActivateHookTargets? = null
     var commitPipelineTargets: CommitPipelineTargets? = null
     var voiceLifecycleTargets: VoiceLifecycleTargets? = null
@@ -121,13 +112,7 @@ internal val ramblerSharedExtensionPatch = bytecodePatch(
         val state = RamblerPatchStateStore.take(this) ?: return@finalize
         if (state.selectedFeatures.isEmpty()) return@finalize
 
-        val needsFlags = state.selectedFeatures.any {
-            it == RamblerFeature.CUSTOM_INSTRUCTIONS ||
-                it == RamblerFeature.PERSONAL_DICTIONARY ||
-                it == RamblerFeature.CURSOR_EDITING ||
-                it == RamblerFeature.APP_CONTEXT ||
-                it == RamblerFeature.PRODUCTIVITY_TOOLS
-        }
+        val needsFlags = RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures
 
         if (needsFlags) {
             val flags = state.flagTargets ?: RamblerDynamicResolver.resolveFlagTargets(this).also {
@@ -136,12 +121,7 @@ internal val ramblerSharedExtensionPatch = bytecodePatch(
             installConflictFreeFlagHook(flags)
         }
 
-        val needsAgenticCtorHook =
-            RamblerFeature.PERSONAL_DICTIONARY in state.selectedFeatures ||
-                RamblerFeature.CONTACT_NAMES in state.selectedFeatures ||
-                RamblerFeature.CURSOR_EDITING in state.selectedFeatures ||
-                RamblerFeature.APP_CONTEXT in state.selectedFeatures ||
-                RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures
+        val needsAgenticCtorHook = RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures
         if (needsAgenticCtorHook && !state.agenticCtorHooked) {
             val agentic = state.agenticTargets ?: RamblerDynamicResolver.resolveAgenticExtension(this)
                 .also { state.agenticTargets = it }
@@ -149,22 +129,7 @@ internal val ramblerSharedExtensionPatch = bytecodePatch(
             state.agenticCtorHooked = true
         }
 
-        if (RamblerFeature.PERSONAL_DICTIONARY in state.selectedFeatures) {
-            val agentic = state.agenticTargets ?: RamblerDynamicResolver.resolveAgenticExtension(this)
-                .also { state.agenticTargets = it }
-            if (state.museStatsTargets == null) {
-                state.museStatsTargets = RamblerDynamicResolver.resolveMuseStatsTargets(
-                    this,
-                    agentic.contextConstructor,
-                )
-            }
-        }
-
-        val needsPrefs = RamblerFeature.CUSTOM_INSTRUCTIONS in state.selectedFeatures ||
-            RamblerFeature.PERSONAL_DICTIONARY in state.selectedFeatures ||
-            RamblerFeature.CURSOR_EDITING in state.selectedFeatures ||
-            RamblerFeature.APP_CONTEXT in state.selectedFeatures ||
-            RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures
+        val needsPrefs = RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures
         if (needsPrefs) {
             val agentic = state.agenticTargets ?: RamblerDynamicResolver.resolveAgenticExtension(this)
                 .also { state.agenticTargets = it }
@@ -176,17 +141,7 @@ internal val ramblerSharedExtensionPatch = bytecodePatch(
             }
         }
 
-        if (RamblerFeature.CUSTOM_INSTRUCTIONS in state.selectedFeatures) {
-            val agentic = state.agenticTargets ?: RamblerDynamicResolver.resolveAgenticExtension(this)
-                .also { state.agenticTargets = it }
-            val sessionBundle = RamblerDynamicResolver.resolveSessionBundleTargets(agentic.extensionClass)
-            state.sessionBundleTargets = sessionBundle
-            installPerAppCustomInstructionHook(sessionBundle)
-        }
-
-        val needsActivateHook =
-            RamblerFeature.CUSTOM_INSTRUCTIONS in state.selectedFeatures ||
-                RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures
+        val needsActivateHook = RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures
         if (needsActivateHook) {
             val agentic = state.agenticTargets ?: RamblerDynamicResolver.resolveAgenticExtension(this)
                 .also { state.agenticTargets = it }
@@ -213,23 +168,30 @@ internal val ramblerSharedExtensionPatch = bytecodePatch(
         state.prefLaunchTargets = prefLaunch
         installExplicitPreferenceLaunchHook(prefLaunch)
 
-        val apTargets = RamblerDynamicResolver.resolveAccessPointTargets(this)
-        if (apTargets != null) {
-            state.accessPointTargets = apTargets
-            installToolbarAccessPointHooks(apTargets)
+        // The toolbar button, spacebar modes and dictation stats all belong to Productivity Tools;
+        // installing them for a Waveform-only selection would put hooks in a build that never asks
+        // the runtime for them.
+        if (RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures) {
+            val apTargets = RamblerDynamicResolver.resolveAccessPointTargets(this)
+            if (apTargets != null) {
+                state.accessPointTargets = apTargets
+                installToolbarAccessPointHooks(apTargets)
+            }
         }
 
-        val agenticForSpacebar = state.agenticTargets
-            ?: runCatching { RamblerDynamicResolver.resolveAgenticExtension(this) }.getOrNull()
-                ?.also { state.agenticTargets = it }
-        if (agenticForSpacebar != null) {
-            val spacebarTargets = RamblerDynamicResolver.resolveSpacebarTriggerTargets(
-                this,
-                agenticForSpacebar.extensionClass,
-            )
-            if (spacebarTargets != null) {
-                state.spacebarTriggerTargets = spacebarTargets
-                installSpacebarTriggerHooks(agenticForSpacebar, spacebarTargets)
+        if (RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures) {
+            val agenticForSpacebar = state.agenticTargets
+                ?: runCatching { RamblerDynamicResolver.resolveAgenticExtension(this) }.getOrNull()
+                    ?.also { state.agenticTargets = it }
+            if (agenticForSpacebar != null) {
+                val spacebarTargets = RamblerDynamicResolver.resolveSpacebarTriggerTargets(
+                    this,
+                    agenticForSpacebar.extensionClass,
+                )
+                if (spacebarTargets != null) {
+                    state.spacebarTriggerTargets = spacebarTargets
+                    installSpacebarTriggerHooks(agenticForSpacebar, spacebarTargets)
+                }
             }
         }
 
@@ -302,27 +264,6 @@ internal fun installToolbarAccessPointHooks(targets: AccessPointTargets) {
         )
         ctor.addInstructions(retIdx + 1, "return-void")
     }
-}
-
-internal fun installPerAppCustomInstructionHook(targets: SessionBundleTargets) {
-    // Replace each `return-object vX` IN PLACE so any branch targeting that return's label
-    // (for example `if-eqz v4, :return_bundle` when App context is off and Default prompt is empty)
-    // lands on `applyPerAppCustomInstruction(vX)` before returning, then append `return-object vX`
-    // immediately after it. Iterating in reverse keeps earlier indices and index 0 stable.
-    for ((retIndex, bundleReg) in targets.returnIndicesAndRegisters.asReversed()) {
-        targets.bundleMethod.replaceInstruction(
-            retIndex,
-            "invoke-static {v$bundleReg}, $CUSTOM_INSTR_RULES_TYPE->applyPerAppCustomInstruction(Landroid/os/Bundle;)V",
-        )
-        targets.bundleMethod.addInstructions(
-            retIndex + 1,
-            "return-object v$bundleReg",
-        )
-    }
-    targets.bundleMethod.addInstructions(
-        0,
-        "invoke-static {p0}, $CUSTOM_INSTR_RULES_TYPE->captureSessionContext(Ljava/lang/Object;)V",
-    )
 }
 
 private fun installExplicitPreferenceLaunchHook(targets: PreferenceLaunchTargets) {
@@ -548,13 +489,10 @@ internal fun rewriteDynamicConfigClinitOnClass(
         sb.appendLine("sput-object v0, $DYNAMIC_CONFIG_TYPE->$fieldName:Ljava/lang/String;")
     }
 
-    // Selected feature gates
+    // Selected feature gates. The five features this bundle does not port are not written at all:
+    // their flags ship false in the extension's own static values, and this bundle's own Rambler
+    // patches already cover them, so turning the upstream implementations on would double every hook.
     putBool("FEATURE_WAVEFORM", RamblerFeature.WAVEFORM in state.selectedFeatures)
-    putBool("FEATURE_CUSTOM_INSTRUCTIONS", RamblerFeature.CUSTOM_INSTRUCTIONS in state.selectedFeatures)
-    putBool("FEATURE_PERSONAL_DICTIONARY", RamblerFeature.PERSONAL_DICTIONARY in state.selectedFeatures)
-    putBool("FEATURE_CONTACT_NAMES", RamblerFeature.CONTACT_NAMES in state.selectedFeatures)
-    putBool("FEATURE_CURSOR_EDITING", RamblerFeature.CURSOR_EDITING in state.selectedFeatures)
-    putBool("FEATURE_APP_CONTEXT", RamblerFeature.APP_CONTEXT in state.selectedFeatures)
     putBool("FEATURE_PRODUCTIVITY_TOOLS", RamblerFeature.PRODUCTIVITY_TOOLS in state.selectedFeatures)
 
     // Flag bindings (resolved or 18.5.4 defaults)
@@ -572,32 +510,8 @@ internal fun rewriteDynamicConfigClinitOnClass(
     putStr("SHADER_EXIT_FADE_FIELD", wf?.shaderExitFadeField ?: "j")
     putStr("SHADER_GLOBAL_ALPHA_FIELD", wf?.shaderGlobalAlphaField ?: "o")
 
-    // MUSE_STATS / Protobuf bindings (resolved or 18.5.4 defaults)
-    val ms = state.museStatsTargets
-    putStr("MODULE_LOAD_METHOD", ms?.moduleLoadMethod ?: "b")
-    putStr("UFC_INTERFACE_CLASS", ms?.ufcInterfaceClass ?: "see")
-    putStr("UFC_FEATURE_ENUM_CLASS", ms?.ufcFeatureEnumClass ?: "sdo")
-    putStr("UFC_ENUM_FROM_ID_METHOD", ms?.ufcEnumFromIdMethod ?: "a")
-    putStr("UFC_READ_METHOD", ms?.ufcReadMethod ?: "c")
-    putStr("UFC_UPDATE_METHOD", ms?.ufcUpdateMethod ?: "n")
-    putStr("FUNCTION_INTERFACE_CLASS", ms?.functionInterfaceClass ?: "wgh")
-    putStr("MUSE_STATS_CLASS", ms?.museStatsClass ?: "scf")
-    putStr("MUSE_STATS_DEFAULT_FIELD", ms?.museStatsDefaultField ?: "a")
-    putStr("MUSE_STATS_WORDS_FIELD", ms?.museStatsWordsField ?: "b")
-    putStr("MUSE_WORD_CLASS", ms?.museWordClass ?: "sce")
-    putStr("MUSE_WORD_DEFAULT_FIELD", ms?.museWordDefaultField ?: "a")
-    putStr("MUSE_WORD_TEXT_FIELD", ms?.museWordTextField ?: "b")
-    putStr("PROTO_BASE_CLASS", ms?.protoBaseClass ?: "aaln")
-    putStr("PROTO_BUILDER_CLASS", ms?.protoBuilderClass ?: "aali")
-    putStr("PROTO_LIST_CLASS", ms?.protoListClass ?: "aamd")
-    putStr("PROTO_PARSE_METHOD", ms?.protoParseMethod ?: "t")
-    putStr("PROTO_TO_BUILDER_METHOD", ms?.protoToBuilderMethod ?: "o")
-    putStr("PROTO_MUTABLE_COPY_METHOD", ms?.protoMutableCopyMethod ?: "E")
-    putStr("BUILDER_COPY_ON_WRITE_METHOD", ms?.builderCopyOnWriteMethod ?: "t")
-    putStr("BUILDER_BUILD_METHOD", ms?.builderBuildMethod ?: "o")
-    putStr("BUILDER_INSTANCE_FIELD", ms?.builderInstanceField ?: "b")
-    putStr("LIST_IS_MODIFIABLE_METHOD", ms?.listIsModifiableMethod ?: "c")
-
+    // The personal-dictionary MUSE_STATS / Protobuf bindings are not written either: that feature
+    // is not ported, its gate never turns on, and the extension's static values already hold them.
     // Preferences bindings (resolved or 18.5.4 defaults)
     val prefs = state.prefsTargets
     putStr("PREFS_CLASS", prefs?.prefsClass ?: "qvt")
@@ -610,13 +524,10 @@ internal fun rewriteDynamicConfigClinitOnClass(
     putStr("PREF_CONTEXT_FIELD", prefLaunch?.contextField ?: "j")
     putStr("PREF_INTENT_FIELD", prefLaunch?.intentField ?: "s")
 
-    // AgenticDictationExtension fields for per-app custom instructions (resolved or 18.5.4 defaults)
-    val bundle = state.sessionBundleTargets
-    putStr(
-        "AGENTIC_CONTEXT_FIELD",
-        bundle?.contextField ?: state.activateHookTargets?.contextField ?: "b",
-    )
-    putStr("AGENTIC_EDITOR_INFO_FIELD", bundle?.editorInfoField ?: "h")
+    // AgenticDictationExtension context field used by the activate hook (resolved or 18.5.4 default).
+    // AGENTIC_EDITOR_INFO_FIELD is only read by the unported custom-instruction rules, so it keeps
+    // the extension's own default.
+    putStr("AGENTIC_CONTEXT_FIELD", state.activateHookTargets?.contextField ?: "b")
 
     // InputConnection wrapper interface methods (resolved or 18.5.4 defaults)
     val pipeline = state.commitPipelineTargets
@@ -737,13 +648,6 @@ private fun MutableMethod.retainHelperExceptionMetadata(body: String) {
     }
 }
 
-internal const val CUSTOM_INSTRUCTION_PREF_KEY = "pref_key_rambler_custom_instruction"
-internal const val USE_DICTIONARY_WORDS_PREF_KEY = "pref_rambler_use_dictionary_words"
-internal const val APPEND_ONLY_PREF_KEY = "pref_rambler_append_only"
-internal const val CURSOR_EDITING_PREF_KEY = "pref_rambler_cursor_editing_enabled"
-internal const val RESELECT_AFTER_EDIT_PREF_KEY = "pref_rambler_reselect_after_edit"
-internal const val APP_CONTEXT_PREF_KEY = "pref_rambler_app_context_enabled"
-internal const val AUTO_PARALLEL_RETRY_PREF_KEY = "pref_rambler_auto_parallel_retry"
 internal const val JETSON_VOICE_SETTINGS_XML = "res/xml/setting_jetson_voice.xml"
 
 internal object RamblerResourceStateStore {
@@ -774,9 +678,7 @@ internal val ramblerSharedSettingsResourcePatch = resourcePatch(
         //    so Android resolves it inside this exact Gboard/GboardWu package even after Package Rename.
         document("AndroidManifest.xml").use { manifestDoc ->
             registerSettingsActivity(manifestDoc)
-            if (RamblerFeature.CUSTOM_INSTRUCTIONS in selected ||
-                RamblerFeature.PRODUCTIVITY_TOOLS in selected
-            ) {
+            if (RamblerFeature.PRODUCTIVITY_TOOLS in selected) {
                 ensureLauncherQueries(manifestDoc)
             }
         }
@@ -868,26 +770,6 @@ internal val ramblerWaveformResourcePatch = ramblerFeatureSelectionResourcePatch
     RamblerFeature.WAVEFORM,
     "Expose Hex waveform settings directly inside Gboard's Rambler voice typing screen.",
 )
-internal val ramblerCustomInstructionsResourcePatch = ramblerFeatureSelectionResourcePatch(
-    RamblerFeature.CUSTOM_INSTRUCTIONS,
-    "Expose Custom instructions directly inside Gboard's Rambler voice typing screen.",
-)
-internal val ramblerPersonalDictionaryResourcePatch = ramblerFeatureSelectionResourcePatch(
-    RamblerFeature.PERSONAL_DICTIONARY,
-    "Expose Use dictionary words toggle and Voice dictionary manager inside Gboard's Rambler voice typing screen.",
-)
-internal val ramblerContactNamesResourcePatch = ramblerFeatureSelectionResourcePatch(
-    RamblerFeature.CONTACT_NAMES,
-    "Expose Contact names sync inside Gboard's Rambler voice typing screen.",
-)
-internal val ramblerCursorEditingResourcePatch = ramblerFeatureSelectionResourcePatch(
-    RamblerFeature.CURSOR_EDITING,
-    "Expose Append-only dictation and Cursor-aware editing toggles inside Gboard's Rambler voice typing screen.",
-)
-internal val ramblerAppContextResourcePatch = ramblerFeatureSelectionResourcePatch(
-    RamblerFeature.APP_CONTEXT,
-    "Expose App context toggle inside Gboard's Rambler voice typing screen.",
-)
 internal val ramblerProductivityToolsResourcePatch = ramblerFeatureSelectionResourcePatch(
     RamblerFeature.PRODUCTIVITY_TOOLS,
     "Expose Hands-free voice actions, Snippets, Find/Replace, History, Auto retry, and Backup inside Gboard's Rambler voice typing screen.",
@@ -912,41 +794,11 @@ private fun zhHantSettingsStrings(): List<Pair<String, String>> = listOf(
     "rambler_enh_pref_backup_summary" to "匯出或匯入所有 Rambler 設定、規則、片語與語音辭典詞彙",
 )
 
-internal fun addCustomInstructionPrefIdempotently(screenDoc: Document) {
-    if (screenDoc.hasPreferenceKey("rambler_enh_custom_instructions_entry")) return
-    val root = screenDoc.documentElement
-    val categoryTag = root.preferredCategoryTag()
-    val category = screenDoc.createElement(categoryTag).apply {
-        setAndroidAttr("key", "rambler_enh_cat_instructions")
-    }
-    val pref = screenDoc.createElement("Preference").apply {
-        setAndroidAttr("key", "rambler_enh_custom_instructions_entry")
-        setAndroidAttr("persistent", "false")
-        setAndroidAttr("title", "@string/rambler_enh_pref_instructions_title")
-        setAndroidAttr("summary", "@string/rambler_enh_pref_instructions_summary")
-    }
-    val intent = screenDoc.createElement("intent").apply {
-        setAndroidAttr("action", OPEN_SETTINGS_ACTION)
-    }
-    val extra = screenDoc.createElement("extra").apply {
-        setAndroidAttr("name", "section")
-        setAndroidAttr("value", "custom_instructions")
-    }
-    intent.appendChild(extra)
-    pref.appendChild(intent)
-    category.appendChild(pref)
-    root.insertBefore(category, root.firstChild)
-}
-
 internal fun injectExhaustiveJetsonVoicePreferences(
     screenDoc: Document,
     selected: Set<RamblerFeature>,
 ) {
     if (selected.isEmpty()) return
-    if (RamblerFeature.CUSTOM_INSTRUCTIONS in selected) {
-        addCustomInstructionPrefIdempotently(screenDoc)
-    }
-
     val root = screenDoc.documentElement
     val categoryTag = root.preferredCategoryTag()
     // Place our single clean category above Gboard's trailing Help & feedback PreferenceCategory.
@@ -994,10 +846,7 @@ internal fun injectExhaustiveJetsonVoicePreferences(
             section = "waveform",
         )?.let(rows::add)
     }
-    if (RamblerFeature.CURSOR_EDITING in selected ||
-        RamblerFeature.APP_CONTEXT in selected ||
-        RamblerFeature.PRODUCTIVITY_TOOLS in selected
-    ) {
+    if (RamblerFeature.PRODUCTIVITY_TOOLS in selected) {
         sectionIntentPreference(
             key = "rambler_enh_behavior_entry",
             titleRes = "@string/rambler_enh_pref_behavior_title",
@@ -1011,14 +860,6 @@ internal fun injectExhaustiveJetsonVoicePreferences(
             titleRes = "@string/rambler_enh_pref_productivity_title",
             summaryRes = "@string/rambler_enh_pref_productivity_summary",
             section = "productivity",
-        )?.let(rows::add)
-    }
-    if (RamblerFeature.PERSONAL_DICTIONARY in selected || RamblerFeature.CONTACT_NAMES in selected) {
-        sectionIntentPreference(
-            key = "rambler_enh_dictionary_entry",
-            titleRes = "@string/rambler_enh_pref_dictionary_title",
-            summaryRes = "@string/rambler_enh_pref_dictionary_summary",
-            section = "dictionary",
         )?.let(rows::add)
     }
     if (RamblerFeature.PRODUCTIVITY_TOOLS in selected) {

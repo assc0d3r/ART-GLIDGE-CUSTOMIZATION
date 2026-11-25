@@ -8,7 +8,6 @@ import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.smali.ExternalLabel
 import com.android.tools.smali.dexlib2.AccessFlags
 
-private const val APPEND_COMMIT_HELPER = "ramblerEnhancementsAppendCommit"
 private const val CHAR_SEQUENCE_TYPE = "Ljava/lang/CharSequence;"
 
 private const val VERSION_NOTE =
