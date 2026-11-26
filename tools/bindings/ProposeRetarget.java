@@ -38,7 +38,7 @@ import java.util.zip.ZipFile;
  *
  * Usage:
  *   java -cp "libs/morphe-cli.jar" tools/bindings/ProposeRetarget.java \
- *       <GboardVersionBindings.kt> <gboard.apk> [--min 0.55] [--top 4]
+ *       <GboardVersionBindings.kt> <gboard.apk> [--min 0.38] [--top 4]
  *       [--emit-audit <file.kt>] [--emit-min 0.85]
  *
  * Candidate generation, strongest first. "owner affinity" means the old class either still exists
@@ -58,11 +58,16 @@ import java.util.zip.ZipFile;
  *   whole apk, same name and params .................. 0.74, or 0.60 when several classes match
  *   whole apk, same full descriptor .................. 0.62, or 0.45 when several match
  *   same class or whole apk, same arity only ......... 0.45 / 0.38
- *   field: same class, same name, type changed ....... 0.90
+ *   field: same class, same name, type changed ....... 0.90 x survival, where survival is the
+ *                                                      fraction of the class's expected members
+ *                                                      that the new APK still declares
  *
  * Two things make a class-level rename tractable. A descriptor that exists but declares none of
  * the members the bindings expect is treated as a *reused* name, not a survivor, so nothing is
- * proposed against a stranger. And a class that a probable proposal already located becomes a
+ * proposed against a stranger. A descriptor that keeps only one of five expected members is barely
+ * better evidence than a stranger, so the same-class field tier is scaled by that fraction instead
+ * of paying out its full 0.90 as soon as anything survives. And a class that a probable proposal
+ * already located becomes a
  * successor for every other binding that expected the old class: its members are then searched by
  * shape alone (identical parameter types 0.72, same return and arity 0.55, same field type 0.60),
  * because the member names of a renamed class are reused short names and prove nothing.
@@ -139,6 +144,7 @@ public final class ProposeRetarget {
     private static final double GLOBAL_SAME_NAME_SAME_ARITY = 0.38;
     private static final double GLOBAL_SAME_RETURN_AND_ARITY = 0.42;
     private static final double AMBIGUITY_PENALTY = 0.15;
+    /** Full weight only when every expected member of the class survives; scaled by ownerSurvival. */
     private static final double FIELD_SAME_CLASS_SAME_NAME = 0.90;
     private static final double FIELD_SAME_CLASS_SAME_TYPE = 0.60;
     private static final double FIELD_HYPOTHESIS_SAME_NAME = 0.70;
@@ -150,7 +156,9 @@ public final class ProposeRetarget {
 
     public static void main(String[] args) throws Exception {
         List<String> positional = new ArrayList<>();
-        double minConfidence = 0.55;
+        // The weakest tier the header advertises. A higher default filters the arity-only
+        // candidates out before they are ranked, so they can never be seen at all.
+        double minConfidence = GLOBAL_SAME_NAME_SAME_ARITY;
         int top = 4;
         Path emitAudit = null;
         double emitMin = 0.85;
@@ -225,6 +233,7 @@ public final class ProposeRetarget {
         // bindings expect of it is treated as gone, so its bindings are searched for a successor
         // instead of being pointed at an unrelated class that merely took the name.
         Map<String, Boolean> ownerSurvives = new LinkedHashMap<>();
+        Map<String, Double> ownerSurvival = new LinkedHashMap<>();
         List<String> reused = new ArrayList<>();
         Map<String, List<Target>> targetsByClass = new LinkedHashMap<>();
         for (Target target : unresolved) {
@@ -247,6 +256,9 @@ public final class ProposeRetarget {
                 if (found) present++;
             }
             ownerSurvives.put(classType, present > 0);
+            // Present out of expected, not a boolean: one surviving member out of five says much
+            // less than five out of five, and the field tier is weighted by that difference.
+            ownerSurvival.put(classType, (double) present / Math.max(1, members.size()));
             boolean hasMemberExpectation = members.stream()
                     .anyMatch(member -> member.kind() != Kind.TYPE);
             if (present == 0 && hasMemberExpectation) {
@@ -261,7 +273,7 @@ public final class ProposeRetarget {
                     hypotheses.getOrDefault(target.classType(), List.of()),
                     index,
                     minConfidence,
-                    ownerSurvives.getOrDefault(target.classType(), false));
+                    ownerSurvival.getOrDefault(target.classType(), 0.0));
             proposals.add(new Proposal(target, hints.get(target.name()), candidates));
         }
 
@@ -470,11 +482,11 @@ public final class ProposeRetarget {
             List<Hypothesis> hypotheses,
             Index index,
             double minConfidence,
-            boolean ownerSurvives) {
+            double ownerSurvival) {
         List<Candidate> found = switch (target.kind()) {
             case TYPE -> proposeType(hypotheses);
-            case FIELD -> proposeField(target, index, hypotheses, ownerSurvives);
-            case METHOD -> proposeMethod(target, index, hypotheses, ownerSurvives);
+            case FIELD -> proposeField(target, index, hypotheses, ownerSurvival);
+            case METHOD -> proposeMethod(target, index, hypotheses, ownerSurvival);
         };
         return rank(found, minConfidence);
     }
@@ -645,22 +657,26 @@ public final class ProposeRetarget {
             Target target,
             Index index,
             List<Hypothesis> hypotheses,
-            boolean ownerSurvives) {
+            double ownerSurvival) {
         List<Hit> fields = new ArrayList<>();
         for (Hit hit : index.byName().getOrDefault(target.memberName(), List.of())) {
             if (hit.isField()) fields.add(hit);
         }
         List<Candidate> candidates = new ArrayList<>();
 
-        if (ownerSurvives) {
+        if (ownerSurvival > 0) {
             List<Hit> sameClass = new ArrayList<>();
             for (Hit hit : fields) {
                 if (hit.owner().equals(target.classType())) sameClass.add(hit);
             }
+            double sameClassConfidence =
+                    round(FIELD_SAME_CLASS_SAME_NAME * ownerSurvival);
+            String survivalNote = " (" + Math.round(ownerSurvival * 100)
+                    + "% of the class's expected members survive)";
             for (Hit hit : sameClass) {
-                candidates.add(new Candidate(hit, FIELD_SAME_CLASS_SAME_NAME,
+                candidates.add(new Candidate(hit, sameClassConfidence,
                         "same class, same name, field type changed "
-                                + target.fieldType() + " -> " + hit.fieldType()));
+                                + target.fieldType() + " -> " + hit.fieldType() + survivalNote));
             }
             // A renamed field on the same class can only be found by its type, and a class with
             // many same-typed fields says nothing, so the tier is damped like the global ones.
@@ -724,14 +740,14 @@ public final class ProposeRetarget {
             Target target,
             Index index,
             List<Hypothesis> hypotheses,
-            boolean ownerSurvives) {
+            double ownerSurvival) {
         List<Hit> methods = new ArrayList<>();
         for (Hit hit : index.byName().getOrDefault(target.memberName(), List.of())) {
             if (!hit.isField()) methods.add(hit);
         }
         List<Candidate> candidates = new ArrayList<>();
 
-        if (ownerSurvives) {
+        if (ownerSurvival > 0) {
             // The audit's own hint: the name survived on the class, only the prototype moved. Every
             // overload is listed, because only the patch that consumes the binding knows which one
             // it meant.
@@ -816,7 +832,7 @@ public final class ProposeRetarget {
         addAll(candidates, sameReturnSameArity, GLOBAL_SAME_RETURN_AND_ARITY,
                 "whole apk, same return type and arity");
 
-        if (!ownerSurvives) {
+        if (ownerSurvival <= 0) {
             List<Hit> globalSameName = new ArrayList<>();
             for (Hit hit : methods) {
                 if (inHypothesis(hypotheses, hit.owner())) continue;
