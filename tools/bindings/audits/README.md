@@ -123,3 +123,10 @@ Expect `resolved: 7` and `unresolved: 0`.
   is a single unit; see that patch's commit for the run.
 - The other pointer features still resolve 18.6.3 descriptors for their own units, so this table is
   what they will use when their units are ported — it does not admit them on its own.
+
+## Proposing replacements
+
+`tools/bindings/ProposeRetarget.java` turns this audit's reasons into ranked candidates for the next
+release, so a port starts from a shortlist instead of a fresh search. It re-derives every
+unresolved target by shape, reports the class hypotheses and successor classes it relied on, and
+`--emit-audit` writes the accepted proposals back in the format above so `BindingAudit` can re-check them.
