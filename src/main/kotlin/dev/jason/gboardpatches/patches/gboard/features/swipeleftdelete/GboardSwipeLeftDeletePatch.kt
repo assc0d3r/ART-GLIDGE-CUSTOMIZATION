@@ -16,7 +16,12 @@ val gboardSwipeLeftDeletePatch = bytecodePatch(
         Compatibility(
             name = "Gboard",
             packageName = "com.google.android.inputmethod.latin",
-            targets = listOf(AppTarget("18.6.3.1002251336-release-arm64-v8a")),
+            targets = listOf(
+                AppTarget("18.6.3.1002251336-release-arm64-v8a"),
+                // The pointer family the feature rides on was audited on 18.8.0: the owner moved
+                // from Lqck;->B to Lagyw;->D and the update-target method from F to H.
+                AppTarget("18.8.0.1022711984-beta-arm64-v8a"),
+            ),
         ),
     )
     dependsOn(
