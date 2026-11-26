@@ -78,3 +78,48 @@ parameter descriptors and register counts, then dump the candidate.
 - **Flag store** is resolved and shape-checked only. It was exercised once through a temporary 18.8
   projection that is not in the tree.
 - If a later 18.8 build changes these shapes the audit fails loudly: re-derive rather than guess.
+
+## `pointer-owner-18.8.0.kt`
+
+The seven members the pointer-owner family rewrites on **18.8.0.1022711984-beta-arm64-v8a** (the same
+APK, and the same sha256, as the section above). They are the `18.8` row of
+`GboardPointerTargets.kt`.
+
+### How the values were derived
+
+1. The 18.6.3 owner, `Lqck;->B(SoftKeyView;FFJI)V`, has no counterpart by name: `Lqck;` is not in the
+   18.8 APK at all. The owner was found by shape instead — `(SoftKeyView;FFJI)V` has a single hit,
+   `Lagyw;->D`, with `access=0x10` (final) and 21 registers, the register contract
+   `GboardPointerOwnerRegisterContract` states for stock.
+2. `MethodDump <apk> 'Lagyw;' D` shows the finish → pre-reset adjacency the stock gate requires:
+   instruction 6 is `t(JI)V`, instruction 7 is `ad()V`, each appearing exactly once, with one
+   `return-void` in the method.
+3. The four anchors follow from their uses:
+   - `t(JI)V`, `access=0x11`, 18 registers, exactly one `invoke-interface/range {v0 .. v13}` to
+     `Lagyx;->f` → finish.
+   - `u(J)V`, `access=0x11`, 4 registers, with the same iget / if-eqz / `a(J)V` / `Z()` / const /
+     iput / iput / return sequence the 18.6.3 cancel has → cancel.
+   - `E()V`, `access=0x11`, 3 registers, calls `u(0L)` then `ad()` then returns → reset.
+   - `ad()V`, `access=0x12` (private final), 8 registers → pre-reset.
+4. The dispatcher the finish calls is `Lagyx;` (`flags=0x601`, an interface), and the update-target
+   method is `Lagyw;->H(MotionEvent;I)V` with 11 registers. `Lagyw;` also declares an `H` *field*, so
+   the two are told apart by the method descriptor, not by the name alone.
+5. Re-ran the audit against the file in this directory: **7 of 7 resolved**.
+
+### Re-checking
+
+```bash
+JAVA="/c/Program Files/Eclipse Adoptium/jdk-25.0.4.101-hotspot/bin/java"
+"$JAVA" -cp libs/morphe-cli.jar tools/bindings/BindingAudit.java \
+    tools/bindings/audits/pointer-owner-18.8.0.kt \
+    "<the 18.8 APK>"
+```
+
+Expect `resolved: 7` and `unresolved: 0`.
+
+### Status and limits
+
+- **Resolved and applied** through Swipe Left to Delete, the one pointer feature whose public patch
+  is a single unit; see that patch's commit for the run.
+- The other pointer features still resolve 18.6.3 descriptors for their own units, so this table is
+  what they will use when their units are ported — it does not admit them on its own.
