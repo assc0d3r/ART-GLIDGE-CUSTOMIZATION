@@ -11,6 +11,7 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import dev.jason.gboardpatches.patches.gboard.shared.applyVoidExitLifecycleDelegate
 import dev.jason.gboardpatches.patches.gboard.shared.findMutableMethodOrThrow
+import dev.jason.gboardpatches.patches.gboard.shared.gboardCompatibility18_8
 import dev.jason.gboardpatches.patches.gboard.shared.gboardPatchesExtensionCarrierPatch
 import dev.jason.gboardpatches.patches.gboard.shared.isMethodReference
 import dev.jason.gboardpatches.patches.gboard.shared.methodCallIndices
@@ -20,7 +21,7 @@ import dev.jason.gboardpatches.patches.gboard.shared.runtimeabi.RuntimeCallEmitt
 import dev.jason.gboardpatches.patches.gboard.shared.runtimeabi.RuntimeCallId
 
 internal val gboardFrostedGlassLifecyclePatch = bytecodePatch(description = "Add the Frosted Glass runtime delegate to the Gboard IME window lifecycle.") {
-    compatibleWith(FROSTED_GLASS_COMPATIBILITY)
+    compatibleWith(gboardCompatibility18_8())
     dependsOn(gboardPatchesExtensionCarrierPatch)
     execute {
         // Resolve admitted bindings only when this contribution executes. A sparse build

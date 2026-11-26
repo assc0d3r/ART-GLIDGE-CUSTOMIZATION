@@ -34,11 +34,12 @@ internal data class GboardPointerTargets(
  * to fall through to the audited table instead of resolving names that are not there.
  */
 internal fun gboardPointerTargets(context: BytecodePatchContext): GboardPointerTargets =
-    if (GboardVersionBindings.pointerOwner.resolveOrNull(context) == null) {
-        GBOARD_POINTER_18_8
-    } else {
-        projectedPointerTargets()
-    }
+    selectReleaseTargets(
+        context = context,
+        projection = ::projectedPointerTargets,
+        probe = GboardPointerTargets::pointerOwner,
+        audited = GBOARD_POINTER_18_8,
+    )
 
 /**
  * Reads the generated projection at call time rather than at class-init time, so a build that does

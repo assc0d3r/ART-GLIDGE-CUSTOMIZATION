@@ -1,37 +1,10 @@
 package dev.jason.gboardpatches.patches.gboard.features.frostedglass
 
-import app.morphe.patcher.patch.AppTarget
 import app.morphe.patcher.patch.BytecodePatchContext
-import app.morphe.patcher.patch.Compatibility
 import dev.jason.gboardpatches.patches.gboard.shared.GboardFieldTarget
 import dev.jason.gboardpatches.patches.gboard.shared.GboardMethodTarget
-import dev.jason.gboardpatches.patches.gboard.shared.generated.GboardTargetAdmission
 import dev.jason.gboardpatches.patches.gboard.shared.generated.GboardVersionBindings
-
-/** The additional release this feature was audited and applied against. */
-internal const val GBOARD_18_8_TARGET = "18.8.0.1022711984-beta-arm64-v8a"
-
-/**
- * Frosted Glass is the only feature so far whose 18.8.0 targets have been audited, so it carries
- * that release itself instead of widening the catalogue's shared compatibility: the other patches
- * still resolve 18.6.3 descriptors and must not advertise a build they cannot patch.
- */
-internal val FROSTED_GLASS_COMPATIBILITY = Compatibility(
-    name = "Gboard",
-    packageName = GboardTargetAdmission.packageName,
-    apkFileType = GboardTargetAdmission.apkFileType,
-    appIconColor = 0x1A73E8,
-    signatures = GboardTargetAdmission.signatures,
-    targets = GboardTargetAdmission.versionNames.map { versionName ->
-        AppTarget(
-            version = versionName,
-            isExperimental = false,
-        )
-    } + AppTarget(
-        version = GBOARD_18_8_TARGET,
-        isExperimental = false,
-    ),
-)
+import dev.jason.gboardpatches.patches.gboard.shared.selectReleaseTargets
 
 /**
  * The ten members the Frosted Glass lifecycle rewrites.
@@ -60,10 +33,13 @@ internal data class FrostedGlassTargets(
  * for: a projection only ever describes one release, and applying this patch to another build has to
  * fall through to the audited table instead of resolving names that are not there.
  */
-internal fun frostedGlassTargets(context: BytecodePatchContext): FrostedGlassTargets {
-    val projection = frostedGlassProjectionTargets()
-    return if (projection.configure.resolveOrNull(context) != null) projection else FROSTED_GLASS_18_8
-}
+internal fun frostedGlassTargets(context: BytecodePatchContext): FrostedGlassTargets =
+    selectReleaseTargets(
+        context = context,
+        projection = ::frostedGlassProjectionTargets,
+        probe = FrostedGlassTargets::configure,
+        audited = FROSTED_GLASS_18_8,
+    )
 
 private val FROSTED_GLASS_18_8 = FrostedGlassTargets(
     configure = GboardMethodTarget(
