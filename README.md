@@ -3,408 +3,405 @@
 <img src="assets/glyphchemy-banner.svg" alt="Glyphchemy — Alchemy for Every Key" width="100%">
 <div align="center">
 
-# ✧ G L Y P H C H E M Y ✧
-### *Alchemy for Every Key.*
+<div align="center">
 
-An ultra-refined, bespoke **Morphe** patch suite transforming **Google Gboard** into a powerhouse of customization, privacy, intelligence, and visual elegance.
+<!-- HERO GLOW & TITLE -->
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=1,9,14,23,26&height=220&section=header&text=✧%20GLYPHCHEMY%20✧&fontSize=52&fontAlignY=38&desc=Alchemy%20for%20Every%20Key%20•%20Gboard%20Unchained&descAlignY=58&descSize=18&fontColor=ffffff&stroke=ffffff&strokeWidth=0.5" width="100%"/>
+</p>
 
-[![Release](https://img.shields.io/github/v/release/assc0d3r/GLYPHCHEMY?display_name=tag&label=Latest%20Release&color=7C3AED&style=for-the-badge&logo=github)](https://github.com/assc0d3r/GLYPHCHEMY/releases/latest)
-[![Add to Morphe](https://img.shields.io/badge/Morphe-One--Click%20Source-00A8FF?style=for-the-badge&logo=android)](https://morphe.software/add-source?github=assc0d3r/GLYPHCHEMY)
-[![Target Gboard](https://img.shields.io/badge/Target-Gboard%2018.6+-4285F4?style=for-the-badge&logo=google)](https://play.google.com/store/apps/details?id=com.google.android.inputmethod.latin)
-[![Patches Count](https://img.shields.io/badge/Patches-89%20Bundled-10B981?style=for-the-badge&logo=puzzle-piece)](#-patch-vault-89-patches)
-[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-F59E0B?style=for-the-badge&logo=gnu)](LICENSE)
+### 🧊 *Your keyboard just got a whole personality upgrade.*
+**The ultimate bespoke Morphe patch suite for Gboard.**
+<br>
+Zero bloat. Pure aesthetics. Unmatched ergonomics. Complete privacy.
 
-<br/>
+<br>
 
-[🚀 **Quick Install**](#-quick-install) • [🧩 **Patch Vault**](#-patch-vault-89-patches) • [📱 **Compatibility**](#-compatibility-matrix) • [⚡ **Tasker Recipe**](#-tasker-automation) • [🛠️ **Build Guide**](#%EF%B8%8F-local-build--development)
+<!-- GLASS BADGES ROW -->
+<p align="center">
+  <a href="https://github.com/assc0d3r/GLYPHCHEMY/releases/latest">
+    <img src="https://img.shields.io/badge/RELEASE-v18.6.3-8A2BE2?style=for-the-badge&logo=rocket&logoColor=white&labelColor=1a1b26" alt="Release">
+  </a>
+  <a href="https://morphe.software/add-source?github=assc0d3r/GLYPHCHEMY">
+    <img src="https://img.shields.io/badge/ADD%20TO%20MORPHE-1--TAP%20SOURCE-00f2fe?style=for-the-badge&logo=android&logoColor=white&labelColor=1a1b26" alt="Add to Morphe">
+  </a>
+  <img src="https://img.shields.io/badge/TARGET-GBOARD%2018.6+-4facfe?style=for-the-badge&logo=google&logoColor=white&labelColor=1a1b26" alt="Target Gboard">
+  <img src="https://img.shields.io/badge/PATCHES-89%20LOADED-00e676?style=for-the-badge&logo=sparkles&logoColor=white&labelColor=1a1b26" alt="Patches Count">
+  <img src="https://img.shields.io/badge/PRIVACY-UNGOOGLED-ff007f?style=for-the-badge&logo=shield&logoColor=white&labelColor=1a1b26" alt="Privacy">
+</p>
+
+<!-- QUICK JUMP PILLS -->
+<p align="center">
+  <b><a href="#-the-vibe-tldr">✨ The Vibe</a></b> • 
+  <b><a href="#-quick-run-install">⚡ Install</a></b> • 
+  <b><a href="#-compatibility-check">📱 Compatibility</a></b> • 
+  <b><a href="#-the-patch-stash-89-patches">🧩 89 Patches</a></b> • 
+  <b><a href="#-tasker-god-mode">⚡ Tasker</a></b> • 
+  <b><a href="#%EF%B8%8F-cook-it-yourself-local-build">🛠️ Build</a></b>
+</p>
 
 ---
 
 </div>
 
-## 🌟 Why Glyphchemy?
+## ✨ The Vibe (TL;DR)
 
-Glyphchemy is not just a tweak—it's a comprehensive runtime enhancement engine for **Gboard** (`com.google.android.inputmethod.latin`). It injects custom runtime logic, bypasses arbitrary feature rollouts, revives legacy ergonomics, and unlocks hidden engine flags.
+Stock Gboard is fine, but **Glyphchemy makes it elite.** It’s an open-source chemistry kit of **89 runtime patches** injected straight via Morphe. We unlock locked Google features, hook native shaders for pure frosted glass blur, build in offline local AI voice typing, and wipe telemetry off the map.
 
 <div align="center">
 
-| 🎨 **Frosted Aesthetics** | 🧠 **Local & Cloud Voice** | 🔒 **Fortified Privacy** | ⚡ **Power Gestures** |
-| :---: | :---: | :---: | :---: |
-| Real-time background blur, OriginOS liquid glass bloom, rainbow RGB glide trail & custom themes | On-device 25+ language offline **NVIDIA Parakeet** or contextual server-side **Rambler** | Metric tracker blockers, signature bypass, cloud-backup cut, offline-only isolation | Directional case flicking, spacebar trackpad, swipe-to-delete & smart spacing |
+### 🍱 The Bento Drop
+
+<table>
+  <tr>
+    <td width="50%" align="left">
+      <h3>🧊 Frosted Glass Everything</h3>
+      Real-time live Gaussian background blur, OriginOS-style liquid glass touch blooms, and transparent keypads that melt seamlessly into your wallpaper.
+      <br><br>
+      <code>#blur</code> <code>#liquid-press</code> <code>#sheen</code>
+    </td>
+    <td width="50%" align="left">
+      <h3>🎙️ Local AI Voice (Zero Cloud)</h3>
+      Full on-device transcription with <b>NVIDIA Parakeet</b> across 25+ languages, or tap into <b>Rambler</b> with smart context awareness and custom prompts.
+      <br><br>
+      <code>#offline-ai</code> <code>#parakeet</code> <code>#zero-latency</code>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="left">
+      <h3>🛡️ Ghost Mode Privacy</h3>
+      Total tracker decapitation. Cut off background sync, disable cloud backups, bypass signature checks, or seal Gboard entirely offline.
+      <br><br>
+      <code>#no-telemetry</code> <code>#firewall</code> <code>#airgapped</code>
+    </td>
+    <td width="50%" align="left">
+      <h3>⚡ Speed-Typing Ergonomics</h3>
+      Swipe left across keys to delete words, double-tap space for Tab / Undo, flick up/down for instant case flips, and trigger Tasker automations on Enter.
+      <br><br>
+      <code>#flow-state</code> <code>#flick-case</code> <code>#trackpad</code>
+    </td>
+  </tr>
+</table>
 
 </div>
 
 ---
 
-## 📱 Compatibility Matrix
+## 📱 Compatibility Check
 
-> [!NOTE]
-> Morphe dynamically skips patches whose signatures are absent on your target build instead of aborting the installation.
+> [!TIP]
+> **No crash policy:** If a target method changed in your Gboard build, Morphe automatically skips that single patch instead of bricking your install.
 
-| Target Gboard Version | Status | Patch Support |
+| Gboard Target Build | Status | Coverage |
 | :--- | :---: | :--- |
-| `18.6.3.1002251336-release-arm64-v8a` | `🟢 Verified Target` | **100% (All 89 Patches)** |
-| `18.8.0.1022711984-beta-arm64-v8a` | `🟡 Experimental` | Frosted Glass, Smart Bar Case Swipe, Punctuation Spacing & Rambler ports |
-| `18.5.4.993608717-release-arm64-v8a` | `🟢 Stable` | Core typing, gesture engine, theme system & field adaptation |
-| `18.0.3.954559732-release-arm64-v8a` | `⚪ Legacy` | Glide Trail, Backspace Haptic Repeat, Enter Tasker Event |
+| `18.6.3.1002251336-release-arm64-v8a` | `🟢 Verified Fire` | **100% Support (All 89 Patches)** |
+| `18.8.0.1022711984-beta-arm64-v8a` | `🟡 Experimental` | Frosted Glass, Smart Bar Swipe, Spacing & Rambler |
+| `18.5.4.993608717-release-arm64-v8a` | `🟢 Smooth` | Gestures, Themes, Profiles & Dynamic Fields |
+| `18.0.3.954559732-release-arm64-v8a` | `⚪ OG Builds` | Glide Trail, Backspace Haptics & Enter Intent |
 
 ---
 
-## 🚀 Quick Install
+## ⚡ Quick Run (Install)
 
 ```mermaid
-flowchart LR
-    A[📲 Open Morphe] --> B[➕ Add Source URL]
-    B --> C[⚙️ Pick Your Patches]
-    C --> D[✨ Patch & Install]
+graph LR
+    A[📲 Open Morphe] --> B[🔗 Paste Source]
+    B --> C[🧪 Mix Patches]
+    C --> D[🔥 Enjoy Elite Gboard]
+    style A fill:#1a1b26,stroke:#00f2fe,stroke-width:2px,color:#fff
+    style B fill:#1a1b26,stroke:#8A2BE2,stroke-width:2px,color:#fff
+    style C fill:#1a1b26,stroke:#ff007f,stroke-width:2px,color:#fff
+    style D fill:#1a1b26,stroke:#00e676,stroke-width:2px,color:#fff
 ```
 
-### 1-Click Setup (Recommended)
-1. **Tap the source badge** directly on your Android device:  
-   👉 **[Add Glyphchemy to Morphe](https://morphe.software/add-source?github=assc0d3r/GLYPHCHEMY)**
+### The 1-Tap Route
+Open this page on your Android phone and smash this button:  
+👉 **[🔗 Add GLYPHCHEMY to Morphe Directly](https://morphe.software/add-source?github=assc0d3r/GLYPHCHEMY)**
 
-### Manual Setup
-1. In **Morphe**, head to **Settings** → **Sources**.
+### The Manual Route
+1. Open **Morphe** ➔ **Settings** ➔ **Sources**.
 2. Tap **Add Source** and paste:
    ```text
    https://github.com/assc0d3r/GLYPHCHEMY
    ```
-3. Navigate to **Patcher**, select **Gboard** (`18.6.3.1002251336-release-arm64-v8a`), choose your patch cocktail, and tap **Patch**.
-4. Install and enjoy!
+3. Head to the **Patcher** tab, choose **Gboard** `18.6.3`, toggle the patches that fit your style, and tap **Patch**.
+4. Install your newly minted APK!
 
-> [!WARNING]
-> A patched APK cannot overwrite stock Gboard due to signature mismatch. Either install via root/Morphe mount, or enable the `Change package name` patch to run side-by-side.
+> [!CAUTION]
+> Patched APKs have custom signatures. You cannot overwrite stock Gboard unless using root mount. If unrooted, turn on the **`Change package name`** patch to run it cleanly side-by-side!
 
 ---
 
-## 🧩 Patch Vault (89 Patches)
+## 🧩 The Patch Stash (89 Patches)
 
-> 💡 *Patches tagged with `⚠️ Inactive by default` carry invasive behavior (custom package names, offline isolation, shell triggers, or radical UI shifts). Review before enabling.*
+> *🏷️ Badges marked `⚠️ OFF BY DEFAULT` mean the patch changes core package names, locks network access, or activates shell bridges. Turn them on intentionally.*
 
-<br/>
+<br>
 
-### ⌨️ Typing, Gestures & Cursor Control
+### 🧊 Aesthetic Alchemy (Themes, Blur & FX)
 
 <details>
-<summary><b>Per-app profiles</b> <code>per-app-profiles</code></summary>
-<br/>
+<summary><b>Frosted Glass</b> <code>frosted-glass</code> • <i>Live Gaussian Blur</i></summary>
+<br>
 
-> Context-aware keyboard orchestration. Automatically switch themes, toolbar orders, incognito learning, and height based on the active package or field type (URL, Email, Terminal, Password, etc.). Supports dynamic session overrides.
+> Delivers real-time background blur and deep transparency controls straight to the keyboard deck. Adjust background and key opacity independently, with optional seamless spill into the system navigation bar. *(Requires Android 12+)*
 </details>
 
 <details>
-<summary><b>Field adaptation</b> <code>field-adaptation</code> <code>⚠️ Inactive by default</code></summary>
-<br/>
+<summary><b>Glass Panel & Glass Press Effect</b> <code>glass-panel-press</code></summary>
+<br>
 
-> Dynamically modifies suggestion engines and auto-correct tolerances according to context (code fields, search bars, email inputs, and password masks).
+> Straight out of vivo OriginOS: turns the keyboard panel into glossy glass with illuminated edges and a liquid touch bloom that radiates light beneath your fingertips while keys compress and spring back.
 </details>
 
 <details>
-<summary><b>Swipe Left to Delete</b> <code>swipe-left-delete</code></summary>
-<br/>
+<summary><b>Glide Trail Customizer</b> <code>glide-trail</code> • <i>RGB Rainbow Wave</i></summary>
+<br>
 
-> Slide left anywhere across the key array to delete characters like backspace; hold during slide to delete whole words continuously.
+> Dial in your glide trail aesthetics: fade duration (200–4000ms), line thickness (2–40dp), length, and custom hex colors via a live HSV wheel or animated dynamic RGB spectrum.
 </details>
 
 <details>
-<summary><b>Smart bar case swipe</b> <code>smart-bar-case-swipe</code></summary>
-<br/>
+<summary><b>Theme Follows Dark Mode</b> <code>theme-follow-dark</code></summary>
+<br>
 
-> Swipe **up** on any suggestion chip to force uppercase; swipe **down** for lowercase prior to insertion while preserving native Gboard spacing.
+> Pairs light and dark themes together. When your phone shifts to dark mode, your keyboard and wallpaper shift along with it automatically.
 </details>
 
 <details>
-<summary><b>Spacebar double-tap tab/undo</b> <code>spacebar-doubletap-action</code></summary>
-<br/>
+<summary><b>Pure AMOLED Black</b> <code>amoled-dark-keyboard</code> <code>⚠️ OFF BY DEFAULT</code></summary>
+<br>
 
-> Double-tap left spacebar to insert a true Tab character; double-tap right spacebar to undo the previous action.
+> Purges Google's muted dark-grey tones for `#000000` pitch black pixels across all keys, panels, and preference screens. Saves battery, looks legendary.
 </details>
 
 <details>
-<summary><b>Punctuation spacing</b> <code>smart-punctuation-spacing</code></summary>
-<br/>
+<summary><b>Custom Icon Packs & Spacebar Branding</b> <code>custom-icons-spacebar</code></summary>
+<br>
 
-> Intelligently strips preceding whitespace for punctuation hugging (`Hey .` ➔ `Hey.`). Fully respects French dual-punctuation space standards (`: ; ! ?`).
+> Slap raster icon packs onto the key cluster, or replace the spacebar logo with any personal PNG, WebP, or vector badge of your choice.
 </details>
 
 <details>
-<summary><b>English QWERTY Flick Case</b> <code>qwerty-flick-case</code></summary>
-<br/>
+<summary><b>Key Shape Customizer & Rounded Panels</b> <code>key-shape-rounded</code></summary>
+<br>
 
-> Flick up on keys for instant uppercase, flick down for lowercase (overrides auto-capitalization).
+> Break free from boring squares: enable custom rounded key profiles and tune independent top/bottom corner radii for docked or floating keyboards.
 </details>
 
 <details>
-<summary><b>Long-Press Editing Shortcuts</b> <code>long-press-shortcuts</code></summary>
-<br/>
+<summary><b>Immersive Landscape Deck</b> <code>immersive-landscape</code></summary>
+<br>
 
-> Instant access to Select All, Undo, Cut, Copy, Paste, and Redo on English QWERTY and Zhuyin layouts.
+> Extends the keyboard cleanly underneath camera punch-holes and notches in landscape mode—no dead screen cutouts.
+</details>
+
+<br>
+
+### ⚡ Frictionless Typing & God-Tier Gestures
+
+<details>
+<summary><b>Per-App Profiles</b> <code>per-app-profiles</code> • <i>Smart Context Switcher</i></summary>
+<br>
+
+> Set custom keyboard personalities per app. Force incognito mode in browsers, compact layouts in Discord, or dedicated numeric heights in banking apps automatically.
 </details>
 
 <details>
-<summary><b>Cursor trackpad mode</b> <code>cursor-trackpad</code></summary>
-<br/>
+<summary><b>Swipe Left to Delete</b> <code>swipe-delete</code></summary>
+<br>
 
-> Long-press the spacebar to engage precision cursor navigation with trackpad locking mechanics.
+> Drag left anywhere across the key field to erase characters like backspace; hold and slide to highlight and obliterate entire words.
 </details>
 
 <details>
-<summary><b>Swipe Down to Dismiss Keyboard</b> <code>swipe-dismiss</code></summary>
-<br/>
+<summary><b>Smart Bar Case Swipe</b> <code>smart-bar-case-swipe</code></summary>
+<br>
 
-> Swipe downward from the candidate bar or toolbar to immediately dismiss the keyboard.
+> Swipe **UP** on any candidate chip to capitalize it; swipe **DOWN** to lowercase it instantly prior to committing.
 </details>
 
 <details>
-<summary><b>Backspace Repeat Haptic Feedback</b> <code>backspace-haptic-repeat</code></summary>
-<br/>
+<summary><b>Spacebar Tab / Undo Double-Tap</b> <code>spacebar-doubletap</code></summary>
+<br>
 
-> Triggers continuous, rhythmic haptic pulses via Gboard's native haptic player while backspace is held down, cutting off the moment cursor hits index 0.
+> Double-tap the left half of the spacebar for a true Tab indent; double-tap the right half to undo your last edit.
 </details>
 
 <details>
-<summary><b>Keypress Vibration Intensity Control</b> <code>vibration-intensity</code></summary>
-<br/>
+<summary><b>Punctuation Spacing</b> <code>punctuation-spacing</code></summary>
+<br>
 
-> Overrides basic duration sliders with precise amplitude/intensity haptic control.
+> Cleans up sloppy auto-spaces behind punctuation automatically (`Hello .` ➔ `Hello.`). Fully preserves French dual-punctuation spacing rules (`: ; ! ?`).
 </details>
 
 <details>
-<summary><b>Multilingual Suggestion</b> <code>multilingual-suggestion</code></summary>
-<br/>
+<summary><b>Flick Up/Down Case Flipping</b> <code>qwerty-flick-case</code></summary>
+<br>
 
-> Promotes suggestions written in secondary alphabets/scripts ahead of Latin candidates.
+> Flick upward on any letter for instant caps; flick downward for lowercase without fighting auto-capitalization.
 </details>
 
 <details>
-<summary><b>Latin Globe Key Ignore Interval</b> <code>globe-ignore-interval</code> <code>⚠️ Inactive by default</code></summary>
-<br/>
+<summary><b>Spacebar Precision Trackpad Mode</b> <code>spacebar-trackpad</code></summary>
+<br>
 
-> Custom ignore duration delay for language switches after rapid typing bursts.
-</details>
-
-<br/>
-
-### 🎨 Visuals, Themes & Aesthetics
-
-<details>
-<summary><b>Frosted Glass</b> <code>frosted-glass</code></summary>
-<br/>
-
-> Real-time live background Gaussian blur and customizable transparency across the board. Independent key and background opacity sliders with optional navigation bar passthrough. *(Requires Android 12+)*.
+> Long-press the spacebar to glide across text with pixel-precise cursor control and text-selection locks.
 </details>
 
 <details>
-<summary><b>Glass Press Effect & Panel</b> <code>glass-press-effect</code></summary>
-<br/>
+<summary><b>Haptic Backspace Pulse</b> <code>backspace-haptics</code></summary>
+<br>
 
-> vivo OriginOS-style liquid glass touch feedback: blooming illumination radiating from finger contact points paired with mechanical key dipping animations.
+> Delivers continuous, crisp physical haptic ticks for every character eaten while holding down backspace, snapping shut the millisecond you hit the start of the field.
+</details>
+
+<br>
+
+### 🎙️ Voice & Intelligence (Local + Cloud)
+
+<details>
+<summary><b>NVIDIA Parakeet (100% Offline AI Voice)</b> <code>voice-parakeet</code></summary>
+<br>
+
+> Runs NVIDIA's Parakeet model directly on your device. Zero internet connection required. Blazing fast, transcribes 25+ languages on the fly, and supports a custom local voice dictionary.
 </details>
 
 <details>
-<summary><b>Glide Trail Customization</b> <code>glide-trail-customizer</code></summary>
-<br/>
+<summary><b>Google Rambler Suite</b> <code>voice-rambler</code></summary>
+<br>
 
-> Total control over gesture typing trails: fade duration (200–4000ms), thickness (2–40dp), tail points (5–100), full HSV color wheel presets, and dynamic Rainbow RGB modes.
+> Unlocks Google's server-side conversational voice model with cursor awareness (edits text mid-sentence), contact name recognition, custom instructions ("write numbers as digits"), and silence auto-stops.
 </details>
 
 <details>
-<summary><b>Theme Follows Dark Mode</b> <code>theme-follow-system-dark</code></summary>
-<br/>
+<summary><b>Offline Camera OCR / Scan Text</b> <code>ocr-scan-text</code></summary>
+<br>
 
-> Seamless dual-theme switching with independent day/night image wallpapers tied to system theme toggles.
+> Strips Google Play Services dependencies from the camera text scanner: point your camera at physical text to paste it directly into your keyboard.
 </details>
 
 <details>
-<summary><b>Gboard Theme Builder & Custom Theme Importer</b> <code>theme-builder-importer</code></summary>
-<br/>
+<summary><b>AI Writing Tools & Smart Compose</b> <code>ai-writing-tools</code></summary>
+<br>
 
-> Native in-app theme creation runtime + one-tap ZIP theme pack importer with sha256 checksum verification.
+> Force-enables Gboard's locked AI Rewrite, Tone Switcher, Grammar Checker, and Smart Compose across any language and device.
+</details>
+
+<br>
+
+### 📋 Power Tools & Clipboard Portal
+
+<details>
+<summary><b>Web Clipboard Portal</b> <code>web-clipboard</code> • <i>LAN Desktop Sync</i></summary>
+<br>
+
+> Turns Gboard into a local web server. Pair your phone with your PC browser over Wi-Fi using a security PIN and beam clipboards back and forth seamlessly.
 </details>
 
 <details>
-<summary><b>AMOLED Dark Keyboard & Settings</b> <code>amoled-pure-black</code> <code>⚠️ Inactive by default</code></summary>
-<br/>
+<summary><b>Clipboard Supercharger</b> <code>clipboard-enhancer</code></summary>
+<br>
 
-> Replaces dark grey backgrounds with authentic pitch black (`#000000`) across all keyboard layouts, settings lists, and preference screens.
+> Unlimited pin retention, custom item limits, character caps beyond stock 20,000 limits, and creation date stamps.
 </details>
 
 <details>
-<summary><b>Keyboard Icon Packs & Custom Spacebar Icon</b> <code>icon-packs-spacebar-logo</code></summary>
-<br/>
+<summary><b>Inline Calculator</b> <code>inline-calculator</code></summary>
+<br>
 
-> Replace system symbols with custom raster icon packs; display custom PNG/WebP images or vector badges directly inside the spacebar.
+> Type arithmetic directly into any chat (`124*3.5`) and get the answer live in your suggestion bar. Tap to insert or long-press to copy.
 </details>
 
 <details>
-<summary><b>Key Shape & Rounded Panel Geometry</b> <code>key-shape-rounded-corners</code></summary>
-<br/>
+<summary><b>Local FTP Server & Floating Browser</b> <code>ftp-floating-search</code></summary>
+<br>
 
-> Unlocks custom key geometry profiles and independent top/bottom corner radiuses for floating and docked keyboards.
+> Spin up a quick FTP server from your keyboard toolbar to browse device storage from another machine, or open a floating web browser without exiting your game or chat.
 </details>
 
-<details>
-<summary><b>Immersive Keyboard</b> <code>immersive-landscape</code></summary>
-<br/>
+<br>
 
-> Extends landscape layout underneath display cutouts/notches without unsightly black side spacers.
-</details>
-
-<details>
-<summary><b>Translucent Bottom Bar & Emoji Placement</b> <code>translucent-bottom-bar</code></summary>
-<br/>
-
-> Harmonizes navigation filler strips with custom theme blur, and allows shifting the emoji trigger to the right of the spacebar.
-</details>
-
-<br/>
-
-### 🎙️ Advanced Voice Engines
-
-<details>
-<summary><b>NVIDIA Parakeet Voice Typing (Offline)</b> <code>voice-parakeet</code></summary>
-<br/>
-
-> Pure on-device neural transcription powered by NVIDIA Parakeet (TDT v3 / Moondream Ultra). Transcribes 25+ languages locally with zero server roundtrips. Includes a personalized spelling dictionary.
-</details>
-
-<details>
-<summary><b>Google Rambler Voice Suite</b> <code>voice-rambler</code></summary>
-<br/>
-
-> Server-side conversational voice transcription with cursor-aware edits, custom instructions ("write numbers as digits"), contact dictionary injection, and silence auto-stops.
-</details>
-
-<details>
-<summary><b>Advanced Voice Tools & Bundled OCR</b> <code>advanced-voice-ocr</code></summary>
-<br/>
-
-> Unlocks auto-punctuation, Bluetooth microphone routing, and an on-device OCR camera scanner requiring zero Play Services dependencies.
-</details>
-
-<br/>
-
-### ✍️ AI Writing, Suggestions & Clipboard
-
-<details>
-<summary><b>AI Writing Suite & Inline Suggestions</b> <code>ai-writing-suite</code></summary>
-<br/>
-
-> Enables Gboard's locked writing tools (rewrite, proofread, tonal shifts), Smart Compose, grammar check, and inline autofill.
-</details>
-
-<details>
-<summary><b>Web Clipboard Portal</b> <code>web-clipboard-portal</code></summary>
-<br/>
-
-> Embedded local LAN server: sync desktop clipboards to your phone over Wi-Fi with PIN security and Quick Settings Tile toggling.
-</details>
-
-<details>
-<summary><b>Clipboard Supercharger</b> <code>clipboard-supercharger</code></summary>
-<br/>
-
-> Infinite retention periods, customizable text character caps (surpassing 20,000 chars), preview line counts, and creation timestamps.
-</details>
-
-<details>
-<summary><b>Simple Inline Calculator</b> <code>inline-calculator</code></summary>
-<br/>
-
-> Type mathematical expressions directly into text fields and receive real-time answers in the suggestion strip.
-</details>
-
-<details>
-<summary><b>LAN FTP Server & Floating Web Browser</b> <code>ftp-floating-search</code></summary>
-<br/>
-
-> Turn Gboard into a background FTP server for direct device file retrieval, or perform quick lookups via an overlay browser without leaving your app.
-</details>
-
-<br/>
-
-### 🔒 Privacy Hardening & System Sanitization
+### 🛡️ Ironclad Privacy & De-Googling
 
 <div align="center">
 
-| Patch | Purpose | Default State |
+| Shield Feature | What It Does | Vibe |
 | :--- | :--- | :---: |
-| **Block Trackers** | Disables background analytics, telemetry & crash reporters | `Active` |
-| **Stop Remote Updates** | Freezes Google server flags from reverting modifications | `Active` |
-| **Add Signature Bypass** | Enables APK installation without original signature match | `Active` |
-| **Offline Only** | Severely cuts all network sockets & permissions | `⚠️ Inactive` |
-| **Disable Play Services**| Operates in total independence from microG / GMS | `⚠️ Inactive` |
-| **Key Mapper Watchdog** | Bridges Shizuku system control for automation | `⚠️ Inactive` |
+| **Block Trackers** | Disables Clearcut analytics, metrics, telemetry & crash reporters | `🔥 Active` |
+| **Stop Remote Updates**| Freezes Google from pushing silent server-side overrides | `🔥 Active` |
+| **Signature Bypass** | Allows full theme engine access on re-signed builds | `🔥 Active` |
+| **Offline Only** | Airgaps Gboard entirely; cuts all network permissions | `⚠️ Opt-In` |
+| **Disable Play Services**| Strips Google Play Services / microG dependency entirely | `⚠️ Opt-In` |
+| **Key Mapper Bridge** | Reconnects Shizuku system automation when halted | `⚠️ Opt-In` |
 
 </div>
 
-<br/>
-
-### ⌨️ Alternate Layouts & Ergonomics
-- **iOS QWERTY & Flick Layouts:** Emulate native iOS layout geometry, Japanese 12-key flicks, and symbols pages.
-- **Split & Accessibility Frameworks:** Unlocks native tablet split modes and large-format accessibility views.
-- **Zhuyin Slide Input & Tuning:** Slide gestures for dual-alphabet typing and custom bottom-row geometry.
-
 ---
 
-## ⚡ Tasker Automation
+## ⚡ Tasker God-Mode
 
-With the **Enter Key Tasker Event** patch enabled, every enter stroke or IME action sends a low-latency broadcast:
+Every time you hit **Enter** or fire an **IME Action** (Send, Search, Next), Glyphchemy sends a background broadcast to Tasker:
 
 ```text
-Action: dev.custom.gboard.ENTER_PRESSED
+Intent Action: dev.custom.gboard.ENTER_PRESSED
 ```
 
-### Received Variables
+### The Payload
 
-| Variable | Description | Example Payload |
+| Variable | Breakdown | Real Example |
 | :--- | :--- | :--- |
-| `%package` | Active foreground application | `com.whatsapp`, `org.telegram.messenger` |
-| `%action_type` | Action identifier triggered | `ENTER`, `SEND`, `SEARCH`, `DONE`, `GO` |
-| `%key_code` | Raw keycode identifier | `66` *(Enter)*, `-10018` *(IME Action)* |
-| `%text_before`| Text preceding cursor (up to 100 chars) | `"https://github.com/..."` |
-| `%timestamp` | Epoch execution time in milliseconds | `1726831000000` |
+| `%package` | App currently in focus | `org.telegram.messenger` |
+| `%action_type` | Action triggered | `SEND`, `ENTER`, `SEARCH`, `DONE` |
+| `%key_code` | Raw Android keycode | `66` *(Enter)*, `-10018` *(IME Action)* |
+| `%text_before`| Last 100 characters typed | `"Payment confirmed #8902"` |
+| `%timestamp` | Unix epoch time in ms | `1726831000000` |
 
 ---
 
-## 🛠️ Local Build & Development
+## 🛠️ Cook It Yourself (Local Build)
 
-Compile your own `.mpp` patch bundles with the automated toolchain:
+Want to inspect the bytecode or compile the `.mpp` yourself? Grab your terminal:
 
 ```bash
-# 1. Clone the repository
+# 1. Clone the codebase
 git clone https://github.com/assc0d3r/GLYPHCHEMY.git
 cd GLYPHCHEMY
 
-# 2. Compile patches, bytecode runtimes & create .mpp bundle
+# 2. Fire the build script
+chmod +x build.sh
 ./build.sh
 ```
 
-### Output Artifacts (`dist/`)
-- `patches-<version>.mpp` — The complete Morphe bundle.
-- `gboard-backspace-haptics.jar` — Standalone Java runtime package.
+The script compiles the Kotlin patch sources, validates bytecode hooks, generates `colorwheel.dex`, and bundles everything into:
+- 📦 `dist/patches-<version>.mpp` *(Ready for Morphe)*
+- ☕ `dist/gboard-backspace-haptics.jar` *(Standalone JAR)*
 
-### Syncing `patches-list.json`
-To reflect new patches in Morphe's inventory:
-
+### Regenerating `patches-list.json`
 ```bash
 java -cp "libs/morphe-cli.jar:libs/gson.jar" tools/bindings/Inventory.java \
   dist/patches-$(sed -n 's/^version=//p' gradle.properties).mpp \
   $(sed -n 's/^version=//p' gradle.properties) \
   patches-list.json
 ```
-*(On Windows cmd/powershell, replace `:` with `;`)*
+*(On Windows PowerShell, use `;` instead of `:`)*
 
 ---
 
 <div align="center">
 
-### ⚖️ License & Acknowledgments
+### 📜 Licensing & Vibes
 
-This project is licensed under the **GNU General Public License v3.0** — see [LICENSE](LICENSE) for details.
+Distributed under the **GNU General Public License v3.0**. Read [LICENSE](LICENSE) for the fine print.
 
-Gboard is a trademark of Google LLC. This project is independently developed and not affiliated with Google.
+*Gboard is a registered trademark of Google LLC. Glyphchemy is an independent project with no Google affiliation.*
 
-⭐ **Enjoying Glyphchemy? Star this repository to support development!** ⭐
+<br>
+
+**Leave a ⭐ if your keyboard has never looked cleaner.**
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=1,9,14,23,26&height=100&section=footer" width="100%"/>
+</p>
 
 </div>
