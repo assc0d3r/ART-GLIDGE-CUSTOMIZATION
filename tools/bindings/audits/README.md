@@ -5,6 +5,46 @@ rediscover the same obfuscated members. Nothing in this directory is compiled or
 tool parses the `val` declarations that build a `Gboard…Target(…)` out of a file and resolves each one
 against an APK, and `tools/bindings/MethodDump.java` prints the members those declarations came from.
 
+## Apply evidence
+
+`morphe-cli` reports success for a patch it never ran. If the APK in front of it is not in the
+patch's declared targets, the run prints
+
+```
+INFO: Skipping "English QWERTY Flick Case": incompatible with com.google.android.inputmethod.latin 18.8.0.1022711984-beta-arm64-v8a
+INFO: Applying 0 patches...
+INFO: Saved to …/out.apk
+```
+
+and **exits 0**, with a rebuilt APK at the output path. A port whose release gate was never added
+therefore looks exactly like a port that applied: same exit status, same output file. Checking the
+output APK's existence, or running `morphe-cli … && echo verified`, proves nothing.
+
+Only this line shows the patch executed:
+
+```
+INFO: Applied: <patch name>
+```
+
+So an apply is checked, never assumed:
+
+```bash
+JAVA="/c/Program Files/Eclipse Adoptium/jdk-25.0.4.101-hotspot/bin/java" \
+    ./tools/apply-patch.sh <input.apk> <output.apk> "English QWERTY Flick Case"
+```
+
+`tools/apply-patch.sh` runs morphe-cli, keeps the log next to the output, and fails unless
+`INFO: Applied:` names every patch it was handed — through `tools/check-apply-evidence.sh`, which
+names the reason when it does not (incompatible, failed, or never ran). Matching is exact on purpose:
+`Swipe Down` must not be satisfied by `Applied: Swipe Down to Dismiss Keyboard`, and several patch
+names in this bundle are prefixes of others.
+
+A patch can also apply and still not finish the run: an unrelated patch failing afterwards aborts
+it, and the output APK is then incomplete. `apply-patch.sh` reports that case separately — "applied"
+for the named patches, then a non-zero exit for the run. `EXTRA_MORPHE_ARGS=--continue-on-error`
+lets a run survive such a failure when only the applied patch is being inspected, but the exit status
+still has to be read.
+
 ## `frosted-and-flag-store-18.8.0.kt`
 
 The thirteen targets Frosted Glass and the shared flag family need on
