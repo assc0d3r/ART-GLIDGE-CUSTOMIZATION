@@ -27,6 +27,7 @@ import java.util.WeakHashMap
 internal const val GBOARD_PACKAGE = "com.google.android.inputmethod.latin"
 internal const val VERIFIED_GBOARD_VERSION = "18.5.4.993608717-release-arm64-v8a"
 internal const val EXPERIMENTAL_GBOARD_VERSION = "18.8.0.1022711984-beta-arm64-v8a"
+internal const val EXPERIMENTAL_GBOARD_VERSION_18_8_1 = "18.8.1.1022711984-beta-arm64-v8a"
 internal val COMPATIBILITY_GBOARD = Compatibility(
     name = "Gboard",
     packageName = GBOARD_PACKAGE,
@@ -39,6 +40,11 @@ internal val COMPATIBILITY_GBOARD = Compatibility(
         ),
         AppTarget(
             version = EXPERIMENTAL_GBOARD_VERSION,
+            isExperimental = true,
+            description = "Experimental standalone target (without Gboard Patches).",
+        ),
+        AppTarget(
+            version = EXPERIMENTAL_GBOARD_VERSION_18_8_1,
             isExperimental = true,
             description = "Experimental standalone target (without Gboard Patches).",
         ),
