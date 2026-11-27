@@ -106,6 +106,10 @@ import dev.jason.gboardpatches.patches.gboard.shared.generated.GboardTargetAdmis
 import dev.jason.gboardpatches.patches.gboard.features.zhuyinbottomrow.gboardZhuyinBottomRowWeightFeatureMarkerPatch
 import dev.jason.gboardpatches.patches.gboard.features.zhuyinbottomrow.gboardZhuyinBottomRowWeightSoftKeyPatch
 import dev.jason.gboardpatches.patches.shared.Constants.COMPATIBILITY_GBOARD
+import dev.srwi.gintype.patches.gboard.registry.gintypeCustomHoldPopupsPatch
+import dev.srwi.gintype.patches.gboard.registry.gintypeMultiglidePatch
+import dev.srwi.gintype.patches.gboard.registry.gintypeThiccTopBarPatch
+import dev.srwi.gintype.patches.gboard.registry.gintypeTypingEffectsPatch
 import dev.jason.gboardpatches.patches.gboard.features.cursortrackpad.gboardCursorTrackpadPreferencePatch
 
 @Suppress("unused")
@@ -967,6 +971,10 @@ object GboardPublishedPatchCatalog {
         gboardGlassPressEffectPublicPatch,
         gboardThemeFollowsDarkModePublicPatch,
         gboardKeyMapperWatchdogPublicPatch,
+        gintypeMultiglidePatch,
+        gintypeThiccTopBarPatch,
+        gintypeCustomHoldPopupsPatch,
+        gintypeTypingEffectsPatch,
     ).filterTo(linkedSetOf()) { patch -> patch.name != null }
 
     fun publishedInventory(version: String): String {
