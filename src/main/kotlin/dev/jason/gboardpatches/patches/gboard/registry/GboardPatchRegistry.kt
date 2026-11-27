@@ -20,6 +20,7 @@ import dev.jason.gboardpatches.patches.gboard.features.bluetoothmicrophone.gboar
 import dev.jason.gboardpatches.patches.gboard.features.bluetoothmicrophone.gboardBluetoothMicrophoneFlagValuePatch
 import dev.jason.gboardpatches.patches.gboard.features.backuprestore.gboardBackupRestoreFeatureMarkerPatch
 import dev.jason.gboardpatches.patches.gboard.features.backuprestore.gboardBackupRestoreManifestPatch
+import dev.jason.gboardpatches.patches.gboard.features.backuprestore.gboardDataBackupFlagValuePatch
 import dev.jason.gboardpatches.patches.gboard.features.calculator.gboardCalculatorFeatureMarkerPatch
 import dev.jason.gboardpatches.patches.gboard.features.calculator.gboardCalculatorLifecyclePatch
 import dev.jason.gboardpatches.patches.gboard.features.about.gboardAboutPageResourcePatch
@@ -505,6 +506,7 @@ val gboardBackupRestorePatch = gboardPublicResourcePatch(
         gboardPatchesSettingsPatch,
         gboardBackupRestoreFeatureMarkerPatch,
         gboardBackupRestoreManifestPatch,
+        gboardDataBackupFlagValuePatch,
     )
 }
 
