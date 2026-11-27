@@ -214,6 +214,50 @@ Expect `resolved: 1`, `unresolved: 0`, and `registers=7 access=0x11` on the dump
   the run.
 - Nothing was run on a device, so switching between the new and legacy settings pages is unverified.
 
+## `long-press-gesture-18.8.0.kt`
+
+The gesture dispatch boundary and the input-event entry the Long-Press Editing Shortcuts port needs
+on **18.8.0.1022711984-beta-arm64-v8a** (same APK and sha256 as the sections above). The first three
+are the `18.8.0` row of `GboardGestureTargets.kt`; the input-event method is the row that patch
+already carried.
+
+### How the values were derived
+
+1. 18.6.3's boundary is `Lqch;->f(...)V`, a three-instruction forward that reads its own stock
+   delegate (`Lqch;->n:Lqcf;`) and calls `Lqcf;->h(...)`. On 18.8.0 that shape is gone from the old
+   names: `Lqch;` does not exist, and the dispatcher became an interface — `Lagyx;` (`0x601`) with
+   `f(Lagyw;Lagkl;Lagmb;SoftKeyDef;JZZIZJI)V`, which the view holds in `Lagyw;->s:Lagyx;`.
+2. The boundary moved to the interface's sole implementor: `Lagyn;` is the only class listing
+   `Lagyx;` in its interfaces, and its `f` is still exactly three instructions (14 registers):
+   `iget-object v0, v0, Lagyn;->n:Lagyl;`, `invoke-interface/range {v0 .. v13}, Lagyl;->h(...)`,
+   `return-void`. The stock dispatch is the `Lagyl;` interface's `h` with the same prototype.
+3. The prototype renamed its first three parameters (`Lqck;` -> `Lagyw;`, `Lpuc;` -> `Lagkl;`,
+   `Lpva;` -> `Lagmb;`) but still costs thirteen parameter words, so the composer's register layout
+   and helper bodies carry over unchanged.
+4. `Lafae;->ay(Ladan;)Z` is the input-event dispatcher, 28 registers - receiver at v26, event at v27 -
+   which is what the input-event patch's register layout derives from its one-parameter prototype.
+5. Re-ran the audit against the file in this directory: **4 of 4 resolved**.
+
+### Re-checking
+
+```bash
+JAVA="/c/Program Files/Eclipse Adoptium/jdk-25.0.4.101-hotspot/bin/java"
+"$JAVA" -cp libs/morphe-cli.jar tools/bindings/BindingAudit.java     tools/bindings/audits/long-press-gesture-18.8.0.kt     "<the 18.8 APK>"
+"$JAVA" -cp libs/morphe-cli.jar tools/bindings/MethodDump.java "<the 18.8 APK>" 'Lagyn;' f
+"$JAVA" -cp libs/morphe-cli.jar tools/bindings/MethodDump.java "<the 18.8 APK>" 'Lafae;' ay | head -2
+```
+
+Expect `resolved: 4`, `unresolved: 0`, the three-instruction forward on `Lagyn;->f`, and
+`registers=28` on `Lafae;->ay`.
+
+### Status and limits
+
+- **Resolved and applied** through the public Long-Press Editing Shortcuts patch, together with its
+  soft-key, pointer and input-event units; see that commit for the run.
+- Top Row Swipe and the Zhuyin toggle share this composer and now read the same table, but their
+  other units have no 18.8 bindings yet, so their public patches stay 18.6.3-only.
+- Nothing was run on a device: the globe-drag shortcut itself is unverified.
+
 ## Proposing replacements
 
 `tools/bindings/ProposeRetarget.java` turns this audit's reasons into ranked candidates for the next

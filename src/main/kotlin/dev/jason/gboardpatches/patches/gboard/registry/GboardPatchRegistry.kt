@@ -192,7 +192,7 @@ val gboardLongPressQuickActionsPatch = gboardPublicResourcePatch(
         "to English QWERTY and Zhuyin.",
     default = true,
 ) {
-    compatibleWith(COMPATIBILITY_GBOARD)
+    compatibleWith(gboardCompatibility18_8())
 
     dependsOn(
         gboardPatchesSettingsPatch,
