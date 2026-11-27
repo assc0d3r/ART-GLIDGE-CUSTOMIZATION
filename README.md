@@ -1,6 +1,10 @@
 <div align="center">
 
 <img src="assets/glyphchemy-banner.svg" alt="Glyphchemy — Alchemy for Every Key" width="100%">
+<div align="center">
+
+# ✧ G L Y P H C H E M Y ✧
+### *Alchemy for Every Key.*
 
 An ultra-refined, bespoke **Morphe** patch suite transforming **Google Gboard** into a powerhouse of customization, privacy, intelligence, and visual elegance.
 
