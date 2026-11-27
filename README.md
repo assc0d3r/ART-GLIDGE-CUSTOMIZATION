@@ -48,7 +48,7 @@ Zero bloat. Pure aesthetics. Unmatched ergonomics. Complete privacy.
 
 Stock Gboard is fine, but **Glyphchemy makes it elite.** It’s an open-source chemistry kit of **89 runtime patches** injected straight via Morphe. We unlock locked Google features, hook native shaders for pure frosted glass blur, build in offline local AI voice typing, and wipe telemetry off the map.
 
-<div align="center">
+<div align="left">
 
 ### 🍱 The Bento Drop
 
