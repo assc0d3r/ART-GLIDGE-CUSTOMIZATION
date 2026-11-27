@@ -176,6 +176,44 @@ fingerprint covers.
 - The footer reorder itself has not been checked on a device: the claim is that the patch applies
   and its own gates hold, not that the tab order looks right.
 
+## `settings-homepage-18.8.0.kt`
+
+The one member the settings homepage override hooks on **18.8.0.1022711984-beta-arm64-v8a** (same
+APK and sha256 as the sections above). It is the `18.8.0` row of `GboardSettingsHomepageTargets.kt`.
+
+### How the value was derived
+
+`SettingsActivity` is a manifest class, so it keeps its name across releases and the 18.6.3
+descriptor resolves unchanged. Running `BindingAudit` over the 18.8 APK resolves the method itself,
+and `MethodDump <apk> 'Lcom/google/android/apps/inputmethod/latin/preference/SettingsActivity;'
+onCreate` shows the same body the patch's stock gate asserts:
+
+- seven registers, the receiver at v5;
+- `invoke-virtual {v5} ...->getIntent()Landroid/content/Intent;` as instruction 0;
+- exactly one `invoke-super {v5, v6} ...->onCreate(Landroid/os/Bundle;)V`;
+- exactly one `return-void`, and it is the last instruction.
+
+The one difference is the declaration: 18.6.3 compiles it `protected final` (`0x14`) and 18.8.0
+compiles it `public final` (`0x11`). `BindingAudit` does not compare access flags, so the patch's own
+gate is what pins it: `SettingsHomepageTargets` carries the expected flags per release and selects
+the table whose flags the APK actually declares.
+
+### Re-checking
+
+```bash
+JAVA="/c/Program Files/Eclipse Adoptium/jdk-25.0.4.101-hotspot/bin/java"
+"$JAVA" -cp libs/morphe-cli.jar tools/bindings/BindingAudit.java     tools/bindings/audits/settings-homepage-18.8.0.kt     "<the 18.8 APK>"
+"$JAVA" -cp libs/morphe-cli.jar tools/bindings/MethodDump.java "<the 18.8 APK>"     'Lcom/google/android/apps/inputmethod/latin/preference/SettingsActivity;' onCreate | head -3
+```
+
+Expect `resolved: 1`, `unresolved: 0`, and `registers=7 access=0x11` on the dump.
+
+### Status and limits
+
+- **Resolved and applied** through the public Settings Homepage Override patch; see that commit for
+  the run.
+- Nothing was run on a device, so switching between the new and legacy settings pages is unverified.
+
 ## Proposing replacements
 
 `tools/bindings/ProposeRetarget.java` turns this audit's reasons into ranked candidates for the next
