@@ -1,8 +1,12 @@
 (() => {
   'use strict';
+
   const REPO = 'assc0d3r/GLYPHCHEMY';
+  // Always ask the live repository first. The local copy is an offline fallback only;
+  // keeping it second prevents an old copied manifest from hiding new patch changes.
   const RAW_MANIFEST = `https://raw.githubusercontent.com/${REPO}/main/patches-list.json`;
   const LOCAL_MANIFEST = 'assets/patches-list.json';
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
   const BUILD_IDS = {
     '18.6.3.1002251336-release-arm64-v8a': 'coverage-186',
     '18.8.0.1022711984-beta-arm64-v8a': 'coverage-188',
@@ -12,7 +16,8 @@
   const CATEGORIES = [
     ['typing', 'Typing & gestures'], ['visuals', 'Themes & visuals'], ['voice', 'Voice typing'],
     ['writing', 'Text & writing'], ['tools', 'Clipboard & tools'], ['layouts', 'Layouts'],
-    ['settings', 'Settings & automation'], ['privacy', 'Privacy & cleanup']
+    ['settings', 'Settings & automation'], ['privacy', 'Privacy & cleanup'],
+    ['other', 'Other / new patches']
   ];
   const CATEGORY_SETS = {
     typing: new Set(['Per-app profiles','Field adaptation','Swipe Left to Delete','Smart bar case swipe','Spacebar double-tap tab/undo','Punctuation spacing','English QWERTY Flick Case','Multilingual Suggestion','Long-Press Editing Shortcuts','Cursor trackpad mode','Swipe Down to Dismiss Keyboard','Latin Globe Key Ignore Interval','Keypress Vibration Intensity Control','Backspace Repeat Haptic Feedback']),
@@ -30,14 +35,14 @@
   const statusFilter = document.getElementById('status-filter');
   const tabs = document.getElementById('category-tabs');
   const resultCount = document.getElementById('results-count');
+  const manifestStatus = document.getElementById('manifest-version');
   const errorBox = document.getElementById('catalogue-error');
   let patches = [];
   let activeCategory = 'all';
+  let lastManifestFingerprint = '';
+  let inventoryReady = false;
+  let refreshInFlight = false;
 
-  function categoryFor(name) {
-    for (const [key, set] of Object.entries(CATEGORY_SETS)) if (set.has(name)) return key;
-    return 'tools';
-  }
   function safeText(value) { return String(value ?? ''); }
   function make(tag, className, text) {
     const node = document.createElement(tag);
@@ -45,27 +50,65 @@
     if (text !== undefined) node.textContent = text;
     return node;
   }
+  function categoryFor(name, description = '') {
+    for (const [key, set] of Object.entries(CATEGORY_SETS)) if (set.has(name)) return key;
+
+    // New patch names are classified from their searchable description. If no rule is
+    // convincing, keep them visible in a distinct bucket instead of mislabelling as Tools.
+    const text = `${safeText(name)} ${safeText(description)}`.toLowerCase();
+    const rules = [
+      ['voice', /voice|speech|microphone|transcri|dictat|rambler|parakeet|ocr|scan text/],
+      ['privacy', /privacy|tracker|hijack|background sync|cloud backup|permission|offline only|remote update|signature bypass|watchdog|network access/],
+      ['layouts', /layout|split keyboard|qwerty|zhuyin|bottom row|tab order|key arrangement/],
+      ['typing', /swipe|gesture|cursor|spacebar|keypress|typing|flick|glide|backspace|haptic|punctuation|trackpad|key repeat/],
+      ['visuals', /theme|visual|glass|colour|color|icon|shape|rounded|amoled|dark mode|animation|translucent|panel|emoji size|background appearance/],
+      ['writing', /writing|grammar|dictionary|dictionar|suggestion|autofill|prediction|calculator|text|language|translation|spell/],
+      ['settings', /setting|automation|tasker|backup|developer|package name|branding|preference|configuration/],
+      ['tools', /clipboard|quick insert|toolbar|symbol|ftp|web search|server|productivity|custom row|access point|utility/]
+    ];
+    for (const [key, pattern] of rules) if (pattern.test(text)) return key;
+    return 'other';
+  }
+  function categoryLabel(key) {
+    return CATEGORIES.find(([id]) => id === key)?.[1] || 'Patch';
+  }
+  function ensureCategoryTabs(data) {
+    const otherCount = data.filter(p => categoryFor(p.name, p.description) === 'other').length;
+    let otherTab = tabs.querySelector('[data-category="other"]');
+    if (otherCount && !otherTab) {
+      otherTab = make('button', 'category-tab', categoryLabel('other'));
+      otherTab.type = 'button';
+      otherTab.dataset.category = 'other';
+      tabs.append(otherTab);
+    } else if (!otherCount && otherTab) {
+      otherTab.remove();
+      if (activeCategory === 'other') {
+        activeCategory = 'all';
+        tabs.querySelector('[data-category="all"]')?.classList.add('is-active');
+      }
+    }
+  }
   function updateStats(data) {
     const enabled = data.filter(p => p.use !== false).length;
     document.getElementById('stat-patches').textContent = data.length;
     document.getElementById('all-count').textContent = data.length;
-    document.getElementById('manifest-version').textContent = `INVENTORY ${window.__glyphchemyManifestVersion || 'CURRENT'} · ${enabled} ENABLED BY DEFAULT`;
     for (const [build, id] of Object.entries(BUILD_IDS)) {
       const count = data.filter(p => (p.compatiblePackages?.['com.google.android.inputmethod.latin'] || []).includes(build)).length;
       document.getElementById(id).textContent = `${count} entries`;
     }
+    ensureCategoryTabs(data);
     for (const tab of tabs.querySelectorAll('[data-category]')) {
       const key = tab.dataset.category;
       if (key === 'all') continue;
-      const count = data.filter(p => categoryFor(p.name) === key).length;
-      const label = CATEGORIES.find(c => c[0] === key)?.[1] || key;
-      tab.textContent = `${label} ${count}`;
+      const count = data.filter(p => categoryFor(p.name, p.description) === key).length;
+      tab.textContent = `${categoryLabel(key)} ${count}`;
     }
+    return enabled;
   }
   function patchCard(patch) {
     const card = make('article', 'patch-card');
     const top = make('div', 'patch-card-top');
-    const category = CATEGORIES.find(c => c[0] === categoryFor(patch.name))?.[1] || 'Patch';
+    const category = categoryLabel(categoryFor(patch.name, patch.description));
     top.append(make('span', 'patch-category', category.toUpperCase()));
     top.append(make('span', `patch-state ${patch.use === false ? 'disabled' : 'enabled'}`, patch.use === false ? 'DISABLED BY DEFAULT' : 'ENABLED BY DEFAULT'));
     card.append(top, make('h3', '', safeText(patch.name)));
@@ -92,7 +135,7 @@
     const query = search.value.trim().toLowerCase();
     const status = statusFilter.value;
     const filtered = patches.filter(p => {
-      const catMatch = activeCategory === 'all' || categoryFor(p.name) === activeCategory;
+      const catMatch = activeCategory === 'all' || categoryFor(p.name, p.description) === activeCategory;
       const enabled = p.use !== false;
       const statusMatch = status === 'all' || (status === 'enabled' ? enabled : !enabled);
       const haystack = [p.name, p.description, ...(p.dependencies || [])].join(' ').toLowerCase();
@@ -108,20 +151,70 @@
     }
     resultCount.textContent = `Showing ${filtered.length} of ${patches.length} manifest entries`;
   }
+  function validateManifest(manifest) {
+    if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.patches)) {
+      throw new Error('Patch array missing from manifest');
+    }
+    const seen = new Set();
+    for (const patch of manifest.patches) {
+      if (!patch || typeof patch.name !== 'string' || !patch.name.trim()) {
+        throw new Error('Manifest contains a patch without a valid name');
+      }
+      if (seen.has(patch.name)) throw new Error(`Duplicate patch name: ${patch.name}`);
+      seen.add(patch.name);
+    }
+    return manifest;
+  }
   async function getManifest() {
-    const sources = [LOCAL_MANIFEST, RAW_MANIFEST];
+    const sources = [RAW_MANIFEST, LOCAL_MANIFEST];
     let lastError;
-    for (const url of sources) {
+    for (const source of sources) {
       try {
-        const response = await fetch(url, { cache: 'no-cache' });
+        // A unique query string plus no-store avoids keeping an old inventory in the browser
+        // or an intermediary cache after a commit changes patches-list.json.
+        const url = `${source}${source.includes('?') ? '&' : '?'}_=${Date.now()}`;
+        const response = await fetch(url, { cache: 'no-store' });
         if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-        const manifest = await response.json();
-        if (!Array.isArray(manifest.patches)) throw new Error('Patch array missing from manifest');
-        window.__glyphchemyManifestVersion = manifest.version || 'CURRENT';
-        return manifest.patches;
+        const manifest = validateManifest(await response.json());
+        return manifest;
       } catch (error) { lastError = error; }
     }
     throw lastError || new Error('Manifest unavailable');
+  }
+  function clockTime() {
+    return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date());
+  }
+  async function refreshManifest(initial = false) {
+    if (refreshInFlight || (document.hidden && !initial)) return;
+    refreshInFlight = true;
+    try {
+      const manifest = await getManifest();
+      const nextPatches = manifest.patches;
+      const fingerprint = JSON.stringify(nextPatches);
+      window.__glyphchemyManifestVersion = manifest.version || 'CURRENT';
+      if (fingerprint !== lastManifestFingerprint) {
+        patches = nextPatches;
+        lastManifestFingerprint = fingerprint;
+        const enabled = updateStats(patches);
+        render();
+        inventoryReady = true;
+        manifestStatus.textContent = `LIVE · ${window.__glyphchemyManifestVersion} · ${enabled} ENABLED · UPDATED ${clockTime()}`;
+      } else {
+        const enabled = patches.filter(p => p.use !== false).length;
+        manifestStatus.textContent = `LIVE · ${window.__glyphchemyManifestVersion} · ${enabled} ENABLED · CHECKED ${clockTime()}`;
+      }
+      errorBox.hidden = true;
+    } catch (error) {
+      if (!inventoryReady) {
+        grid.replaceChildren(make('div', 'empty-state', 'The patch list could not be loaded. The rest of the site is ready to use.'));
+        resultCount.textContent = 'Patch inventory unavailable';
+        errorBox.hidden = false;
+      } else {
+        manifestStatus.textContent = `LIVE SYNC UNAVAILABLE · LAST DATA RETAINED · ${clockTime()}`;
+      }
+    } finally {
+      refreshInFlight = false;
+    }
   }
 
   tabs.addEventListener('click', event => {
@@ -156,14 +249,10 @@
     }
   });
 
-  getManifest().then(data => {
-    patches = data;
-    updateStats(data);
-    errorBox.hidden = true;
-    render();
-  }).catch(() => {
-    grid.replaceChildren(make('div', 'empty-state', 'The patch list could not be loaded. The rest of the site is ready to use.'));
-    resultCount.textContent = 'Patch inventory unavailable';
-    errorBox.hidden = false;
+  refreshManifest(true);
+  // Keep an already-open site current too. Returning to the tab triggers an immediate check.
+  window.setInterval(() => refreshManifest(false), REFRESH_INTERVAL_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshManifest(false);
   });
 })();
